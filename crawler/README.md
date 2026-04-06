@@ -9,6 +9,37 @@
 - WikiDumpParser | streaming xml parser for dumps 
 - saveToJson
 
+# Dump Structure Example
+please check first500-lines-from-enwiki-dump.txt for reference 
+```javascript
+<mediawiki>
+  <siteinfo>...</siteinfo>     
+  
+  <page>                        
+    <title>Empirical formula</title>
+    <ns>0</ns>                   
+    <id>10065</id>              
+    <redirect title="..." />     
+    
+    <revision>                  
+      <id>110399</id>           
+      <parentid>249989</parentid> 
+      <timestamp>2002-02-25T15:51:15Z</timestamp>
+      <contributor>
+        <username>Conversion script</username>
+        <id>1226483</id>
+      </contributor>
+      <comment>Automated conversion</comment>
+      <text>In [[chemistry]], the empirical formula...</text>
+    </revision>
+    
+    <revision>...</revision>     
+  </page>
+  
+  <page>...</page>              
+</mediawiki>
+
+```
 # Output Structure
 Each article is output in this format:
 

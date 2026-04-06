@@ -31,9 +31,7 @@ wikiStore.storeArticle('all', article, callback);
 wikiStore.getArticleManifest('all', pageId, callback);
 wikiStore.getArticleSegment('all', pageId, segmentId, callback);
 ```
-
-Storage does not own term search, semantic drift, ranking, or time-series indexing. It only guarantees that article histories are compactly stored and reconstructable.
-
+ 
 ## Ingestion
 
 Use `storage/ingestDumpToStore.js` to parse a dump and write articles to the distributed store:
@@ -53,4 +51,4 @@ node storage/checkStoredArticle.js 12345 --port 9000
 node storage/checkStoredArticle.js "Linearization" --title --port 9000
 ```
 
-This prints the manifest only. Retrieval/indexing code should own date lookup and reconstruction.
+

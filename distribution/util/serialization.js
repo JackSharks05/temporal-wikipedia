@@ -1,106 +1,195 @@
 // @ts-check
-
+const U = Symbol("undefined");
 /**
  * @param {any} object
  * @returns {string}
  */
 function serialize(object) {
-  if (object === null) {
-    return JSON.stringify({type:'null'});
-  }
-  if (typeof object === 'undefined') {
-    return JSON.stringify({type:'undefined'});
-  }
-  if (typeof object === 'number') {
-    return JSON.stringify({type:'number',value:String(object)});
-  }
-  if (typeof object === 'function') {
-    return JSON.stringify({type:'function',value:object.toString()});
+  if (typeof object === "undefined" || object === undefined) {
+    return "{u}";
   }
   if (object instanceof Date) {
-    return JSON.stringify({type:'Date',value:object.toISOString()});
+    return "{d}" + object.toISOString();
   }
-  if (object instanceof Error) {
-    return JSON.stringify({type:'Error',value:{name:object.name,message:object.message}});
-  }
-  if (Array.isArray(object)) {
-  const items = [];
-  for (let i = 0; i < object.length; i++) {
-    items.push(serialize(object[i]));
-  }
-  return JSON.stringify({type:'Array', value:items });
-  }
-  if (typeof object === 'object') {
-    const out = {};
-    for (const k in object) {
-      out[k] = serialize(object[k]);
+  return JSON.stringify(object, function (k, o) {
+    if (this[k] instanceof Date) {
+      return { type: "Date", value: this[k].toISOString() };
     }
-    return JSON.stringify({type:'Object',value:out});
-  }
-  else {
-    return JSON.stringify(object);
-  }
+    // if (object instanceof Date) {
+    //   // console.log("serializing a date!", object.toJSON());
+    //   return "{d}" + object.toISOString();
+    // }
+    if (o === undefined) {
+      return { type: "undefined" };
+    }
+    if (
+      o === null ||
+      typeof o === "string" ||
+      typeof o === "boolean" ||
+      (typeof o === "number" && Number.isFinite(o))
+    ) {
+      return o;
+    }
+    if (typeof object === "string" && object.slice(0, 3) === "{d}") {
+      return "{d}" + object;
+    }
+    if (typeof object === "string" && object.slice(0, 3) === "{u}") {
+      return "{u}" + object;
+    }
+    if (typeof object === "undefined" || object === undefined) {
+      return { type: "undefined" };
+    }
+    for (const [type, formulae] of Object.entries(registry)) {
+      if (type === "Date" || type === "undefined") continue;
+      if (formulae.verify(o)) {
+        return { type: type, value: formulae.serialize(o) };
+      }
+    }
+    // if (typeof o === "object") {
+    //   return Object.fromEntries(
+    //     Object.entries(o).map(([k, v]) => [k, serialize(v)]),
+    //   );
+    // }
+    return o;
+  });
 }
 
+//I decided to make a registry to hold all the custom serializing/deserializing as I had wayyy too many helper methods!
+const registry = {
+  Date: {
+    verify: (o) => {
+      if (o instanceof Date) {
+        // console.log("found a date!!", o.toJSON());
+        return true;
+      }
+    },
+    serialize: (o) => {
+      // console.log("serializing a date!", o.toISOString());
+      return o.toISOString();
+    },
+    deserialize: (o) => {
+      // const sliced = o.slice(3);
+      // const d = new Date(sliced);
+      // Object.setPrototypeOf(d, Date.prototype);
+      return new Date(o);
+    },
+  },
+  Error: {
+    verify: (o) => o instanceof Error,
+    serialize: (o) => ({
+      name: o.name,
+      message: o.message,
+      stack: o.stack,
+      cause: o.cause,
+    }),
+    deserialize: (o) => {
+      let ErrorType = Error;
+      if (globalThis[o.name] instanceof Function) {
+        ErrorType = globalThis[o.name];
+      }
+      let output = new ErrorType(o.message);
+      if (o.stack) {
+        output.stack = o.stack;
+      }
+      if ("cause" in o) {
+        output.cause = o.cause;
+      }
+      return output;
+    },
+  },
+  undefined: {
+    verify: (o) => o === undefined,
+    serialize: () => null, //this is handled in serialize directly
+    deserialize: () => undefined,
+  },
+  Number: {
+    verify: (o) => typeof o === "number",
+    serialize: (o) => {
+      if (Object.is(o, -0)) return { type: "Number", value: "-0" }; //why is it different??? js is so silly
+      if (Number.isNaN(o)) return { type: "Number", value: "NaN" };
+      if (o === Infinity) return { type: "Number", value: "Infinity" };
+      if (o === -Infinity) return { type: "Number", value: "-Infinity" };
+      return o; //normal number
+    },
+    deserialize: (o) => {
+      if (o === "-0") return -0;
+      if (o === "NaN") return NaN;
+      if (o === "Infinity") return Infinity;
+      if (o === "-Infinity") return -Infinity;
+      return o; //normal number
+    },
+  },
+  Function: {
+    verify: (o) => typeof o === "function",
+    serialize: (o) => {
+      const body = String(o);
+      return {
+        body,
+        name: o.name || null,
+      };
+    },
+    deserialize: (o) => {
+      let fn;
+      try {
+        // sometimes the functions are in (a,b) => a+b form
+        fn = new Function(`return (${o.body})`)();
+      } catch {
+        // but these are for others
+        fn = new Function(`return ${o.body}`)();
+      }
+
+      if (o.name) {
+        Object.defineProperty(fn, "name", { value: o.name });
+      }
+      return fn;
+    },
+  },
+};
 
 /**
  * @param {string} string
  * @returns {any}
  */
 function deserialize(string) {
-  if (typeof string !== 'string') {
+  if (typeof string !== "string") {
     throw new Error(`Invalid argument type: ${typeof string}.`);
   }
+  if (string === "{u}") return undefined;
+  if (string.startsWith("{d}")) return new Date(string.slice(3));
 
-  let parsed= JSON.parse(string);
-  
-  if (typeof parsed !== 'object') {
-    return parsed;
-  }
-  switch(parsed.type) {
-    case 'number':
-      if (parsed.value === 'NaN') return NaN;
-      if (parsed.value === 'Infinity') return Infinity;
-      if (parsed.value === '-Infinity') return -Infinity;
-      return Number(parsed.value);
-    case 'undefined':
+  const parsed = JSON.parse(string, (_, o) => {
+    if (o && typeof o === "object" && "type" in o) {
+      if (o.type === "undefined") {
+        return U; //a marker for undefined bc it's so frustratingly elusive :(
+      }
+      if (o.type === "Date") {
+        return new Date(o.value);
+      }
+      const formulae = registry[o.type];
+      if (!formulae) {
+        throw new Error("Oops! Unknown type! " + o.type);
+      }
+      return formulae.deserialize(o.value);
+    }
+    return o;
+  });
+
+  function restoreUndefined(o) {
+    if (o === U) {
       return undefined;
-    case 'null':
-      return null;
-    case 'string':
-      return parsed.value;
-    case 'boolean':
-      return parsed.value;
-    case 'function':
-      return Function('return (' + parsed.value + ')')();
-    case 'Function':
-      return Function('return (' + parsed.value + ')')();
-    case 'Date':
-      return new Date(parsed.value);
-    case 'Error': {
-      const e = new Error(parsed.value && parsed.value.message);
-      if (parsed.value && parsed.value.name) e.name = parsed.value.name;
-      return e;
     }
-    case 'Array': {
-      const arr = [];
-      const v = parsed.value || [];
-      
-      for (let i = 0; i < v.length; i++){
-        arr.push(deserialize(v[i]));
+    if (Array.isArray(o)) {
+      for (let i = 0; i < o.length; i++) {
+        o[i] = restoreUndefined(o[i]);
       }
-      return arr;
-    }
-    case 'Object': {
-      const obj = {};
-      const v = parsed.value || {};
-      for (const k in v) {
-        obj[k] = deserialize(v[k]);
+    } else if (o && typeof o === "object") {
+      for (const k of Object.keys(o)) {
+        o[k] = restoreUndefined(o[k]);
       }
-      return obj;
     }
+    return o;
   }
-  throw new Error(`Unknown serialized type: ${parsed.type}`);
+  return restoreUndefined(parsed);
 }
 
 module.exports = {

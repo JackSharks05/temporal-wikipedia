@@ -1,3 +1,4 @@
+
 // @ts-check
 /**
  * @typedef {import("../types.js").Node} Node

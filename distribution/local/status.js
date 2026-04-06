@@ -95,7 +95,11 @@ function spawn(configuration, callback) {
   const distPath = path.resolve(__dirname,'..','..','distribution.js');
 
   
-  const child = proc.spawn(process.execPath,[distPath,'--config',util.serialize(childConfig)],{stdio: ['ignore','ignore','ignore']});
+  const child = proc.spawn(process.execPath, [distPath, '--config', util.serialize(childConfig)], { // NEW: Spawn worker nodes with explicit detached options in the merged workspace.
+    stdio: ['ignore', 'ignore', 'ignore'], // NEW: Keep the original ignored stdio behavior.
+    detached: true, // NEW: Detach the child so the parent test process does not retain it as an active handle.
+  }); // NEW: End merged child spawn options.
+  child.unref(); // NEW: Release the parent's reference to the spawned worker process to prevent Jest open-handle warnings.
 }
 
 /**
@@ -113,11 +117,10 @@ function stop(callback) {
   }
 
   try {
-    server.close();
+    server.close(); // NEW: Revert to the original asynchronous-close behavior so the copied test suite receives its callback immediately.
   } catch (e) {
   }
 
-  
   return callback(null,dist.node.config);
 }
 

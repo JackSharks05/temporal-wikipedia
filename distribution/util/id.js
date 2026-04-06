@@ -72,42 +72,51 @@ const naiveHash = (kid, nids) => {
 
 /** @type { Hasher } */
 const consistentHash = (kid, nids) => {
-  const ring = [kid, ...nids].slice();
-  ring.sort((a, b) => {
-    if (idToNum(a) <idToNum(b)){
-      return -1;
-    }
-    return 1;
+  const kidNum = idToNum(kid);
+  // create {nid, num} pairs array
+  const nidPairs = nids.map((nid) => ({
+    nid: nid,
+    num: idToNum(nid),
+  }));
+
+  nidPairs.sort((a,b) => {
+    if (a.num < b.num) return -1;
+    if (a.num > b.num) return 1;
+    return 0;
   });
-  const i = ring.indexOf(kid);
 
-
-  return ring[(i+1) % ring.length];
+  for (const pair of nidPairs) {
+    if (pair.num >= kidNum) {
+      return pair.nid;
+    }
+  }
+  return nidPairs[0].nid;
 };
-
-
 
 /** @type { Hasher } */
 const rendezvousHash = (kid, nids) => {
-  let best = nids[0];
-  let bestScore = idToNum(getID(kid+best));
-  for (let i = 1; i < nids.length; i++) {
-    const nid = nids[i];
-    const score = idToNum(getID(kid+nid));
+  let maxHash = BigInt(-1);
+  let selectedNid = nids[0];
+  for (const nid of nids) {
+    const combined = kid + nid;
+    const hash = crypto.createHash('sha256');
+    hash.update(combined);
+    const hashValue = idToNum(hash.digest('hex'));
+    if (hashValue > maxHash) {
+      maxHash = hashValue;
+      selectedNid = nid;
 
-    if (score > bestScore) {
-      best = nid;
-      bestScore = score;
     }
   }
-
-  return best;
+  return selectedNid;
 };
+
 module.exports = {
   getID,
   getNID,
   getSID,
   getMID,
+  idToNum,
   naiveHash,
   consistentHash,
   rendezvousHash,

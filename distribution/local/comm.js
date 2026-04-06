@@ -74,6 +74,7 @@ function send(message, remote, callback) {
   const req = http.request(options, (response) => {
     
     let data = '';//accumulate response
+    if (response.socket && typeof response.socket.unref === 'function') { response.socket.unref(); } // NEW: Release the response socket so completed requests do not keep Jest alive.
     response.on('data', (chunk) => {
       data = data + chunk;
     });
@@ -94,6 +95,7 @@ function send(message, remote, callback) {
   req.on('error', (error) => {
     callback(new Error(String(error)), null);
   });
+  req.on('socket', (socket) => { if (socket && typeof socket.unref === 'function') { socket.unref(); } }); // NEW: Release outbound request sockets from the parent event-loop refcount.
   
   req.write(body);
   req.end();

@@ -40,3 +40,4 @@ function log(message, severity) {
 }
 
 module.exports = log;
+

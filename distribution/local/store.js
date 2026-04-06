@@ -14,62 +14,74 @@
 - Use absolute paths to make sure they are agnostic to where your code is running from!
   Use the `path` module for that.
 */
-const fs = require('node:fs');
-const path = require('node:path');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const { allowedNodeEnvironmentFlags } = require("process");
+const { parse, config } = require("yargs");
 
 /**
- * @param {SimpleConfig} configuration
- * @returns {{key: (string|null), gid: string}}
- */
-function parseConfig(configuration) { // normalize
-  let key = null;
-  let gid = 'local';
-
-  if (typeof configuration === 'string') {
-    key = configuration;
-  } else if (configuration && typeof configuration === 'object') {
-    if (typeof configuration.key === 'string' || configuration.key === null) {
-      key = configuration.key;
-    }
-    if (typeof configuration.gid === 'string' && configuration.gid.length > 0) {
-      gid = configuration.gid;
-    }
-  } else if (configuration === null) {
-    key = null;
-  }
-
-  return {key, gid};
-}
-
-/**
- * @param {string} key
- * @returns {string}
- */
-function safeKey(key) {
-  const s = String(key).replace(/[^a-z0-9]/gi,'');
-  return s;
-}
-
-/**
+ * get storage dir for the current node 
  * @param {string} gid
  * @returns {string}
  */
-function getPartition(gid) {
-  const dist = globalThis.distribution;
-  const nid = dist.util.id.getNID(dist.node.config);
-
-  const root = path.resolve(__dirname,'..','..');
-  const base = path.join(root,'store',nid);
-  const partition = path.join(base, gid);
-
-  try {
-    fs.mkdirSync(partition, {recursive: true});
-  } catch (e) {
-  }
-
-  return partition;
+function getStoreDir(gid) {
+  const nid = globalThis.distribution.util.id.getNID(
+    globalThis.distribution.node.config,
+  )
+  const storeRoot = path.join(__dirname, '..', '..', 'store');
+  return path.join(storeRoot, nid, gid);
 }
 
+/**
+ * convert a key to a safe filename
+ * @param {string} key
+ * @returns {string}
+ */
+function keyToFilename(key) {
+  const hash = crypto.createHash('sha256');
+  hash.update(key);
+  return hash.digest('hex');
+}
+
+/**
+ * directory checker
+ * @param {string} dir
+ */
+function ensureDir(dir) {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, {recursive: true});
+  }
+}
+
+/**
+ * parse helper 
+ * @param {SimpleConfig} configuration
+ * @returns {{key: string | null, gid: string}}
+ */
+
+function parseConfig(configuration) {
+  if (configuration === null) {
+    return {key: null, gid: 'local'};
+  }
+
+  if (typeof configuration === 'string') {
+    return {key: configuration, gid: 'local'};
+  }
+  return {
+    key: configuration.key || null,
+    gid: configuration.gid || 'local',
+  };
+}
+
+/**
+ * key generator from obejct using id.getID
+ * @param {any} state
+ * @returns {string}
+ */
+function generateKey(state) {
+  return globalThis.distribution.util.id.getID(state);
+}
 
 /**
  * @param {any} state
@@ -77,112 +89,142 @@ function getPartition(gid) {
  * @param {Callback} callback
  */
 function put(state, configuration, callback) {
+  callback = callback || function() {};
+  try {
+    const {key: rawKey, gid} = parseConfig(configuration);
+    const key = rawKey === null ? generateKey(state) : rawKey;
+    const storeDir = getStoreDir(gid);
+    ensureDir(storeDir);
+    const filename = keyToFilename(key);
+    const filepath = path.join(storeDir, filename);
 
-  const dist = globalThis.distribution;
-  const id = dist.util.id;
-  const config = parseConfig(configuration);
-  const partition = getPartition(config.gid);
-
-  const util = dist.util;
-
-  let key = config.key;
-  if (key === null) {
-    key = id.getID(state);
-  }
-
-  const filename = safeKey(key);
-  const file = path.join(partition,filename);
-  const data = util.serialize(state);
-
-
-  fs.writeFile(file,data,'utf8',(e) => {
-    if (e){
-      return callback(e, null);
-    }
+    const data = {
+      key: key,
+      value: state,
+    };
+    const serialized = globalThis.distribution.util.serialize(data);
+    fs.writeFileSync(filepath, serialized, 'utf8');
     return callback(null, state);
-  });
+  } catch (err) {
+    return callback(err instanceof Error ? err : new Error(String(err)));
+  }
 }
- 
-
 
 /**
  * @param {SimpleConfig} configuration
  * @param {Callback} callback
  */
-function get(configuration,callback) {
-
-  
-  const config = parseConfig(configuration);
-  const partition = getPartition(config.gid);
-  const dist = globalThis.distribution;
-  const util = dist.util;
-
-  if (config.key === null) {
-    return fs.readdir(partition,(e,files) => {
-      if (e){
-        return callback(e,null);
+function get(configuration, callback) {
+  callback = callback || function() {};
+  try {
+    const {key, gid} = parseConfig(configuration);
+    const storeDir = getStoreDir(gid);
+    if (key === null) {
+      if (!fs.existsSync(storeDir)) {
+        return callback(null, []);
       }
-      return callback(null,files);
-    });
-  }
 
-  const filename = safeKey(config.key);
-  const file = path.join(partition,filename);
-
-  fs.readFile(file,'utf8',(e, data) => {
-    if (e){
-      return callback(new Error('store.get: key not found'),null);
+      const files = fs.readdirSync(storeDir);
+      const keys = [];
+      for (const file of files) {
+        const filepath = path.join(storeDir, file);
+        try {
+          const content = fs.readFileSync(filepath, 'utf8');
+          const data = globalThis.distribution.util.deserialize(content);
+          keys.push(data.key);
+        } catch (e) {
+          // skip
+        }
+      }
+      return callback(null, keys);
     }
-    const v = util.deserialize(data);
-    return callback(null,v);
-  });
-}
 
+    const filename = keyToFilename(key);
+    const filepath = path.join(storeDir, filename);
+    if (!fs.existsSync(filepath)) {
+      return callback(new Error('Key not found: ' + key));
+    }
+    const content = fs.readFileSync(filepath, 'utf8');
+    const data = globalThis.distribution.util.deserialize(content);
+    return callback(null, data.value);
+  } catch (err) {
+    return callback(err instanceof Error ? err : new Error(String(err)));
+  }
+  // return callback(new Error('store.get not implemented'));
+}
 
 /**
  * @param {SimpleConfig} configuration
  * @param {Callback} callback
  */
 function del(configuration, callback) {
-
-
-  const cfg = parseConfig(configuration);
-  const partition = getPartition(cfg.gid);
-
-  if (cfg.key === null) {
-    return callback(new Error('store.del: missing key'),null);
-  }
-
-
-  const dist = globalThis.distribution;
-  const util = dist.util;
-  const filename = safeKey(cfg.key);
-  const file = path.join(partition,filename);
-
-  fs.readFile(file,'utf8',(e,data) => {
-    if (e){
-      return callback(new Error('store.del: key not found'),null);
+  callback = callback || function() {};
+  try {
+    const {key, gid} = parseConfig(configuration);
+    if (key === null) {
+      return callback(new Error('Key required for delete'));
     }
 
-    let v = util.deserialize(data);
+    const storeDir = getStoreDir(gid);
+    const filename = keyToFilename(key);
+    const filepath = path.join(storeDir, filename);
 
-    fs.unlink(file,(e) => {
-      if (e){
-        return callback(e,null);
-      }
-      return callback(null,v);
-    });
-  });
+    if (!fs.existsSync(filepath)) {
+      return callback(new Error('Key not found: ' + key));
+    }
+
+    const content = fs.readFileSync(filepath, 'utf8');
+    const data = globalThis.distribution.util.deserialize(content);
+    fs.unlinkSync(filepath);
+    return callback(null, data.value);
+  } catch (err) {
+    return callback(err instanceof Error ? err : new Error(String(err)));
+  }
+  // return callback(new Error('store.del not implemented'));
 }
 
- 
 /**
  * @param {any} state
  * @param {SimpleConfig} configuration
  * @param {Callback} callback
  */
 function append(state, configuration, callback) {
-  return callback(new Error('store.append not implemented')); // You'll need to implement this method for the distributed processing milestone.
+  // return callback(new Error('store.append not implemented')); // You'll need to implement this method for the distributed processing milestone.
+  callback = callback || function() {};
+  try {
+    const {key: rawKey, gid} = parseConfig(configuration);
+    if (rawKey === null) {
+      return callback(new Error('Key required fro append'));
+    }
+
+    const storeDir = getStoreDir(gid);
+    ensureDir(storeDir);
+
+    const filename = keyToFilename(rawKey);
+    const filepath = path.join(storeDir, filename);
+
+    let existing = [];
+    if (fs.existsSync(filepath)) {
+      const content = fs.readFileSync(filepath, 'utf8');
+      const data = globalThis.distribution.util.deserialize(content);
+      if (Array.isArray(data.value)) {
+        existing = data.value;
+      } else {
+        existing = [data.value];
+      }
+    }
+    existing.push(state);
+    const data = {
+      key: rawKey,
+      value: existing,
+    };
+
+    const serialized = globalThis.distribution.util.serialize(data);
+    fs.writeFileSync(filepath, serialized, 'utf8');
+    return callback(null, existing);
+  } catch (err) {
+    return callback(err instanceof Error ? err : new Error(String(err)));
+  }
 }
 
 module.exports = {put, get, del, append};

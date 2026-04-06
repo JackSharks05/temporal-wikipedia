@@ -1,0 +1,20 @@
+{
+  "name": "temporal-wikipedia-merged-progress",
+  "version": "0.1.0",
+  "description": "Merged distributed systems library plus temporal Wikipedia crawler, storage, and indexing scripts.",
+  "main": "distribution.js",
+  "debug": false,
+  "scripts": {
+    "ingest": "node storage/ingestDumpToStore.js",
+    "check": "node storage/checkStoredArticle.js"
+  },
+  "dependencies": {
+    "diff": "^8.0.4",
+    "html-to-text": "^9.0.5",
+    "jsdom": "^23.2.0",
+    "natural": "^6.10.4",
+    "sax": "^1.6.0",
+    "unbzip2-stream": "^1.4.3",
+    "yargs": "^17.7.2"
+  }
+}

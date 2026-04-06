@@ -1,6 +1,8 @@
 {
   "dependencies": {
-    "diff": "^8.0.4"
+    "diff": "^8.0.4",
+    "sax": "^1.6.0",
+    "unbzip2-stream": "^1.4.3"
   },
   "devDependencies": {
     "@types/diff": "^7.0.2"

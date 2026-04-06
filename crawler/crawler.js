@@ -98,29 +98,305 @@ function extractLinks(wikitext) {
  *  delta encode revisions to save space 
  */
 function deltaEncode(revisions) {
+  if (!revisions || revisions.length === 0) {
+    return {base: null, deltas: []};
+  }
 
+  // oldest first
+  revisions.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+  const base = {
+    revId: revisions[0].revId,
+    timestamp: revisions[0].timestamp,
+    content: revisions[0].content || '',
+  };
+
+  const deltas = [];
+
+  for (let i = 1; i < revisions.length; i++) {
+    const prevContent = revisions[i - 1].content || '';
+    const currContent = revisions[i].content || '';
+
+    // create unified diff patch
+    const patch = Diff.createPatch(
+        `rev-${revisions[i].revId}`,
+        prevContent,
+        currContent,
+        revisions[i - 1].timestamp,
+        revisions[i].timestamp,
+    );
+
+    deltas.push({
+      revId: revisions[i].revId,
+      parentId: revisions[i].parentId,
+      timestamp: revisions[i].timestamp,
+      patch: patch,
+    });
+  }
+
+  return {base, deltas};
 }
 
-function reconstructAtRevision(article, targetRevID) {
+function reconstructAtRevision(article, targetRevId) {
+  if (!article.base) return null;
 
+  let content = article.base.content;
+
+  if (article.base.revId === targetRevId) {
+    return content;
+  }
+
+  for (const delta of article.deltas) {
+    content = Diff.applyPatch(content, delta.patch);
+    if (delta.revId === targetRevId) {
+      return content;
+    }
+  }
+
+  return content; // return latest if not found
 }
 
 function reconstructAtDate(article, targetDate) {
+  if (!article.base) return null;
 
+  const target = new Date(targetDate);
+  let content = article.base.content;
+  let lastTimestamp = article.base.timestamp;
+
+  if (new Date(article.base.timestamp) > target) {
+    return null; // the article didn't exist yet
+  }
+
+  for (const delta of article.deltas) {
+    if (new Date(delta.timestamp) <= target) {
+      content = Diff.applyPatch(content, delta.patch);
+      lastTimestamp = delta.timestamp;
+    } else {
+      break;
+    }
+  }
+
+  return {content, timestamp: lastTimestamp};
 }
 
 /**
  * streaming xml parser for dumps
  */
 class WikiDumpParser extends Transform {
+  constructor(options = {}) {
+    super({objectMode: true});
 
+    this.saxParser = sax.parser(true, {trim: false, normalize: false}); // strict mode XML parser, keeping whitespace
+    this.currentPage = null;
+    this.currentRevision = null;
+    this.currentTag = ''; // xml tag
+    this.textBuffer = '';
+    this.pageCount = 0;
+    this.articleCount = 0;
+    this.limit = options.limit || Infinity;
+    this.maxRevisions = options.maxRevisions || 50; // limit revisions per article
+
+    this._setupSaxHandlers();
+  }
+
+  _setupSaxHandlers() {
+    this.saxParser.onopentag = (node) => {
+      // <page> or <revison>
+      this.currentTag = node.name;
+
+      if (node.name === 'page') {
+        this.currentPage = {
+          title: '',
+          pageId: '',
+          revisions: [],
+        };
+      } else if (node.name === 'revision') {
+        this.currentRevision = {
+          revId: '',
+          parentId: '',
+          timestamp: '',
+          content: '',
+        };
+      }
+
+      this.textBuffer = '';
+    };
+
+    this.saxParser.ontext = (text) => {
+      this.textBuffer += text;
+    };
+
+    this.saxParser.oncdata = (cdata) => {
+      this.textBuffer += cdata;
+    };
+
+    this.saxParser.onclosetag = (name) => {
+      const text = this.textBuffer;
+
+      if (this.currentRevision) {
+        switch (name) {
+          case 'id':
+            if (!this.currentRevision.revId) {
+              this.currentRevision.revId = text.trim();
+            }
+            break;
+          case 'parentid':
+            this.currentRevision.parentId = text.trim();
+            break;
+          case 'timestamp':
+            this.currentRevision.timestamp = text.trim();
+            break;
+          case 'text':
+            this.currentRevision.content = text;
+            break;
+          case 'revision':
+            if (this.currentPage) {
+              // limit revisions to avoid memory issues
+              if (this.currentPage.revisions.length < this.maxRevisions) {
+                this.currentPage.revisions.push(this.currentRevision);
+              } else {
+                // replace oldest with newest
+                this.currentPage.revisions.shift();
+                this.currentPage.revisions.push(this.currentRevision);
+              }
+            }
+            this.currentRevision = null;
+            break;
+        }
+      } else if (this.currentPage) {
+        switch (name) {
+          case 'title':
+            this.currentPage.title = text.trim();
+            break;
+          case 'id':
+            if (!this.currentPage.pageId) {
+              this.currentPage.pageId = text.trim();
+            }
+            break;
+          case 'page':
+            this._emitPage();
+            this.currentPage = null;
+            break;
+        }
+      }
+
+      this.textBuffer = '';
+      this.currentTag = '';
+    };
+
+    this.saxParser.onerror = (err) => {
+      console.error('SAX Parser error:', err);
+      this.saxParser.resume();
+    };
+  }
+
+  _emitPage() {
+    // when </page> is reached 
+    if (!this.currentPage) return;
+
+    this.pageCount++;
+
+    const {title, revisions} = this.currentPage;
+    const latestContent = revisions.length > 0 ?
+      revisions[revisions.length - 1].content : '';
+
+    if (shouldProcess(title, latestContent)) {
+      this.articleCount++;
+
+      if (this.articleCount <= this.limit) {
+        // delta encodes revisinos
+        const encoded = deltaEncode(revisions);
+
+        // extract links from latest revision
+        const links = extractLinks(latestContent);
+
+        const article = {
+          title: this.currentPage.title,
+          pageId: this.currentPage.pageId,
+          base: encoded.base,
+          deltas: encoded.deltas,
+          links: links,
+          revisionCount: revisions.length,
+        };
+
+        this.push(article);
+      }
+    }
+
+    // console log progress
+    if (this.pageCount % CONFIG.progressInterval === 0) {
+      console.log(`Processed ${this.pageCount} pages, ${this.articleCount} articles`);
+    }
+  }
+
+  _transform(chunk, encoding, callback) {
+    try {
+      this.saxParser.write(chunk.toString());
+      callback(); // ready for next chunk 
+    } catch (err) {
+      callback(err);
+    }
+  }
+
+  _flush(callback) {
+    try {
+      this.saxParser.close();
+      console.log(`\nFinished: ${this.pageCount} pages, ${this.articleCount} articles`);
+      callback();
+    } catch (err) {
+      callback(err);
+    }
+  }
 }
 
 /**
  * process a dump file
  */
 async function processDump(dumpPath, options = {}) {
+  const {onArticle, onComplete, limit} = options;
+  return new Promise((resolve, reject) => {
+    let inputStream;
+    // unzip
+    if (dumpPath.endsWith('.bz2')) {
+      try {
+        const bz2 = require('unbzip2-stream');
+        inputStream = fs.createReadStream(dumpPath).pipe(bz2());
+      } catch (err) {
+        console.error('Error: unbzip2-stream not installed. Run: npm install unbzip2-stream');
+        reject(err);
+        return;
+      }
+    } else if (dumpPath.endsWith('.gz')) {
+      const zlib = require('zlib');
+      inputStream = fs.createReadStream(dumpPath).pipe(zlib.createGunzip());
+    } else {
+      inputStream = fs.createReadStream(dumpPath);
+    }
+    
+    const parser = new WikiDumpParser({limit});
+    const articles = [];
 
+    parser.on('data', (article) => {
+      if (onArticle) {
+        onArticle(article);
+      } else {
+        articles.push(article);
+      }
+    });
+
+    parser.on('end', () => {
+      if (onComplete) {
+        onComplete(articles);
+      }
+      resolve(articles);
+    });
+
+    parser.on('error', (err) => {
+      reject(err);
+    });
+
+    inputStream.pipe(parser);
+  });
 }
 
 function saveToJson(articles, outputDir) {

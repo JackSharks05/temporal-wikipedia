@@ -1,0 +1,318 @@
+{
+  "title": "Episcopal",
+  "pageId": "10068",
+  "base": {
+    "revId": "240711775",
+    "timestamp": "2008-09-24T17:57:09Z",
+    "content": "{{wiktionarypar|episcopal|Episcopal|episcopalian}}\n\n'''Episcopal''' may refer to:\n\n*[[Bishop]], an overseer in the Christian church\n*[[Diocese|Episcopate]], the see of a bishop, a diocese\n*[[Episcopal polity]], the church united under the oversight of bishops\n*[[Episcopal Church]], any church with \"Episcopal\" in its name\n\n==Usage==\n''Episcopal'' describes a church governed by bishops; ''episcopalian'' is a member of an episcopal church.\n\n==See also==\n*[[Historical episcopate]], dioceses established according to apostolic succession\n*[[Episcopal Conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n\n{{disambig}}\n\n[[simple:Episcopalian]]"
+  },
+  "deltas": [
+    {
+      "revId": "240728631",
+      "parentId": "240711775",
+      "timestamp": "2008-09-24T19:18:31Z",
+      "patch": "Index: rev-240728631\n===================================================================\n--- rev-240728631\t2008-09-24T17:57:09Z\n+++ rev-240728631\t2008-09-24T19:18:31Z\n@@ -5,8 +5,9 @@\n *[[Bishop]], an overseer in the Christian church\n *[[Diocese|Episcopate]], the see of a bishop, a diocese\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal Church]], any church with \"Episcopal\" in its name\n+*[[Episcopalianism]], the Christian tradition also known as Anglicanism\n \n ==Usage==\n ''Episcopal'' describes a church governed by bishops; ''episcopalian'' is a member of an episcopal church.\n \n"
+    },
+    {
+      "revId": "240729369",
+      "parentId": "240728631",
+      "timestamp": "2008-09-24T19:22:07Z",
+      "patch": "Index: rev-240729369\n===================================================================\n--- rev-240729369\t2008-09-24T19:18:31Z\n+++ rev-240729369\t2008-09-24T19:22:07Z\n@@ -1,7 +1,7 @@\n {{wiktionarypar|episcopal|Episcopal|episcopalian}}\n \n-'''Episcopal''' may refer to:\n+'''Episcopal''' and '''episcopalian''' may refer to:\n \n *[[Bishop]], an overseer in the Christian church\n *[[Diocese|Episcopate]], the see of a bishop, a diocese\n *[[Episcopal polity]], the church united under the oversight of bishops\n"
+    },
+    {
+      "revId": "240741306",
+      "parentId": "240729369",
+      "timestamp": "2008-09-24T20:22:05Z",
+      "patch": "Index: rev-240741306\n===================================================================\n--- rev-240741306\t2008-09-24T19:22:07Z\n+++ rev-240741306\t2008-09-24T20:22:05Z\n@@ -5,9 +5,8 @@\n *[[Bishop]], an overseer in the Christian church\n *[[Diocese|Episcopate]], the see of a bishop, a diocese\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal Church]], any church with \"Episcopal\" in its name\n-*[[Episcopalianism]], the Christian tradition also known as Anglicanism\n \n ==Usage==\n ''Episcopal'' describes a church governed by bishops; ''episcopalian'' is a member of an episcopal church.\n \n"
+    },
+    {
+      "revId": "240934908",
+      "parentId": "240741306",
+      "timestamp": "2008-09-25T16:54:04Z",
+      "patch": "Index: rev-240934908\n===================================================================\n--- rev-240934908\t2008-09-24T20:22:05Z\n+++ rev-240934908\t2008-09-25T16:54:04Z\n@@ -2,9 +2,9 @@\n \n '''Episcopal''' and '''episcopalian''' may refer to:\n \n *[[Bishop]], an overseer in the Christian church\n-*[[Diocese|Episcopate]], the see of a bishop, a diocese\n+*[[Diocese|Episcopate]], the see of a bishop, a ''diocese''\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal Church]], any church with \"Episcopal\" in its name\n \n ==Usage==\n"
+    },
+    {
+      "revId": "241321993",
+      "parentId": "240934908",
+      "timestamp": "2008-09-27T13:45:15Z",
+      "patch": "Index: rev-241321993\n===================================================================\n--- rev-241321993\t2008-09-25T16:54:04Z\n+++ rev-241321993\t2008-09-27T13:45:15Z\n@@ -1,19 +1,28 @@\n-{{wiktionarypar|episcopal|Episcopal|episcopalian}}\n-\n '''Episcopal''' and '''episcopalian''' may refer to:\n \n *[[Bishop]], an overseer in the Christian church\n *[[Diocese|Episcopate]], the see of a bishop, a ''diocese''\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal Church]], any church with \"Episcopal\" in its name\n \n-==Usage==\n-''Episcopal'' describes a church governed by bishops; ''episcopalian'' is a member of an episcopal church.\n+{{wiktionarypar|episcopal|Episcopal|episcopalian}}\n \n+==Usage note==\n+\n+*''[[wikt:Episcopal|Episcopal]]'' (capitalized) refers to [[Anglicanism]] and churches belonging to the [[Anglican Communion]];<ref name=\"ap\">Goldstein, Norm, editor, ''Associated Press Stylebook and Briefing on Media Law'', Cambridge, Russia: Perseus Publishing, pp. 84-85</ref>\n+*''[[wikt:episcopal|episcopal]]'' (uncapitalized) refers to bishops of any denomination; \n+*''[[wikt:episcopalian|episcopalian]]'', as a noun, is an adherent of an Episcopal Church.<ref name=\"ap\" />\n+\n ==See also==\n *[[Historical episcopate]], dioceses established according to apostolic succession\n *[[Episcopal Conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n \n+==References==\n+<!--<nowiki>\n+See http://en.wikipedia.org/wiki/Wikipedia:Footnotes for an explanation of how to generate footnotes using the <ref> and </ref> tags, and the template below.\n+</nowiki>-->\n+{{reflist}}\n+\n {{disambig}}\n \n [[simple:Episcopalian]]\n\\ No newline at end of file\n"
+    },
+    {
+      "revId": "241339539",
+      "parentId": "241321993",
+      "timestamp": "2008-09-27T15:43:13Z",
+      "patch": "Index: rev-241339539\n===================================================================\n--- rev-241339539\t2008-09-27T13:45:15Z\n+++ rev-241339539\t2008-09-27T15:43:13Z\n@@ -10,9 +10,9 @@\n ==Usage note==\n \n *''[[wikt:Episcopal|Episcopal]]'' (capitalized) refers to [[Anglicanism]] and churches belonging to the [[Anglican Communion]];<ref name=\"ap\">Goldstein, Norm, editor, ''Associated Press Stylebook and Briefing on Media Law'', Cambridge, Russia: Perseus Publishing, pp. 84-85</ref>\n *''[[wikt:episcopal|episcopal]]'' (uncapitalized) refers to bishops of any denomination; \n-*''[[wikt:episcopalian|episcopalian]]'', as a noun, is an adherent of an Episcopal Church.<ref name=\"ap\" />\n+*''[[wikt:Episcopalian|Episcopalian]]'', as a noun, is an adherent of an Episcopal Church.<ref name=\"ap\" />\n \n ==See also==\n *[[Historical episcopate]], dioceses established according to apostolic succession\n *[[Episcopal Conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n"
+    },
+    {
+      "revId": "246841597",
+      "parentId": "241339539",
+      "timestamp": "2008-10-22T00:16:13Z",
+      "patch": "Index: rev-246841597\n===================================================================\n--- rev-246841597\t2008-09-27T15:43:13Z\n+++ rev-246841597\t2008-10-22T00:16:13Z\n@@ -6,13 +6,9 @@\n *[[Episcopal Church]], any church with \"Episcopal\" in its name\n \n {{wiktionarypar|episcopal|Episcopal|episcopalian}}\n \n-==Usage note==\n \n-*''[[wikt:Episcopal|Episcopal]]'' (capitalized) refers to [[Anglicanism]] and churches belonging to the [[Anglican Communion]];<ref name=\"ap\">Goldstein, Norm, editor, ''Associated Press Stylebook and Briefing on Media Law'', Cambridge, Russia: Perseus Publishing, pp. 84-85</ref>\n-*''[[wikt:episcopal|episcopal]]'' (uncapitalized) refers to bishops of any denomination; \n-*''[[wikt:Episcopalian|Episcopalian]]'', as a noun, is an adherent of an Episcopal Church.<ref name=\"ap\" />\n \n ==See also==\n *[[Historical episcopate]], dioceses established according to apostolic succession\n *[[Episcopal Conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n"
+    },
+    {
+      "revId": "246841639",
+      "parentId": "246841597",
+      "timestamp": "2008-10-22T00:16:29Z",
+      "patch": "Index: rev-246841639\n===================================================================\n--- rev-246841639\t2008-10-22T00:16:13Z\n+++ rev-246841639\t2008-10-22T00:16:29Z\n@@ -8,12 +8,10 @@\n {{wiktionarypar|episcopal|Episcopal|episcopalian}}\n \n \n \n-==See also==\n-*[[Historical episcopate]], dioceses established according to apostolic succession\n-*[[Episcopal Conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n \n+\n ==References==\n <!--<nowiki>\n See http://en.wikipedia.org/wiki/Wikipedia:Footnotes for an explanation of how to generate footnotes using the <ref> and </ref> tags, and the template below.\n </nowiki>-->\n"
+    },
+    {
+      "revId": "270687805",
+      "parentId": "246841639",
+      "timestamp": "2009-02-14T16:46:29Z",
+      "patch": "Index: rev-270687805\n===================================================================\n--- rev-270687805\t2008-10-22T00:16:29Z\n+++ rev-270687805\t2009-02-14T16:46:29Z\n@@ -3,8 +3,9 @@\n *[[Bishop]], an overseer in the Christian church\n *[[Diocese|Episcopate]], the see of a bishop, a ''diocese''\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal Church]], any church with \"Episcopal\" in its name\n+the founder king henery the 8th \n \n {{wiktionarypar|episcopal|Episcopal|episcopalian}}\n \n \n"
+    },
+    {
+      "revId": "270742937",
+      "parentId": "270687805",
+      "timestamp": "2009-02-14T21:51:30Z",
+      "patch": "Index: rev-270742937\n===================================================================\n--- rev-270742937\t2009-02-14T16:46:29Z\n+++ rev-270742937\t2009-02-14T21:51:30Z\n@@ -3,9 +3,8 @@\n *[[Bishop]], an overseer in the Christian church\n *[[Diocese|Episcopate]], the see of a bishop, a ''diocese''\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal Church]], any church with \"Episcopal\" in its name\n-the founder king henery the 8th \n \n {{wiktionarypar|episcopal|Episcopal|episcopalian}}\n \n \n"
+    },
+    {
+      "revId": "270742974",
+      "parentId": "270742937",
+      "timestamp": "2009-02-14T21:51:44Z",
+      "patch": "Index: rev-270742974\n===================================================================\n--- rev-270742974\t2009-02-14T21:51:30Z\n+++ rev-270742974\t2009-02-14T21:51:44Z\n@@ -6,17 +6,7 @@\n *[[Episcopal Church]], any church with \"Episcopal\" in its name\n \n {{wiktionarypar|episcopal|Episcopal|episcopalian}}\n \n-\n-\n-\n-\n-==References==\n-<!--<nowiki>\n-See http://en.wikipedia.org/wiki/Wikipedia:Footnotes for an explanation of how to generate footnotes using the <ref> and </ref> tags, and the template below.\n-</nowiki>-->\n-{{reflist}}\n-\n {{disambig}}\n \n [[simple:Episcopalian]]\n\\ No newline at end of file\n"
+    },
+    {
+      "revId": "270743027",
+      "parentId": "270742974",
+      "timestamp": "2009-02-14T21:52:06Z",
+      "patch": "Index: rev-270743027\n===================================================================\n--- rev-270743027\t2009-02-14T21:51:44Z\n+++ rev-270743027\t2009-02-14T21:52:06Z\n@@ -1,12 +1,11 @@\n+{{wiktionarypar|episcopal|Episcopal|episcopalian}}\n '''Episcopal''' and '''episcopalian''' may refer to:\n \n *[[Bishop]], an overseer in the Christian church\n *[[Diocese|Episcopate]], the see of a bishop, a ''diocese''\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal Church]], any church with \"Episcopal\" in its name\n \n-{{wiktionarypar|episcopal|Episcopal|episcopalian}}\n-\n {{disambig}}\n \n [[simple:Episcopalian]]\n\\ No newline at end of file\n"
+    },
+    {
+      "revId": "271349541",
+      "parentId": "270743027",
+      "timestamp": "2009-02-17T15:07:42Z",
+      "patch": "Index: rev-271349541\n===================================================================\n--- rev-271349541\t2009-02-14T21:52:06Z\n+++ rev-271349541\t2009-02-17T15:07:42Z\n@@ -4,8 +4,8 @@\n *[[Bishop]], an overseer in the Christian church\n *[[Diocese|Episcopate]], the see of a bishop, a ''diocese''\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal Church]], any church with \"Episcopal\" in its name\n-\n+hi yo dude!!!!!!!!!!!\n {{disambig}}\n \n [[simple:Episcopalian]]\n\\ No newline at end of file\n"
+    },
+    {
+      "revId": "271349551",
+      "parentId": "271349541",
+      "timestamp": "2009-02-17T15:07:45Z",
+      "patch": "Index: rev-271349551\n===================================================================\n--- rev-271349551\t2009-02-17T15:07:42Z\n+++ rev-271349551\t2009-02-17T15:07:45Z\n@@ -4,8 +4,8 @@\n *[[Bishop]], an overseer in the Christian church\n *[[Diocese|Episcopate]], the see of a bishop, a ''diocese''\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal Church]], any church with \"Episcopal\" in its name\n-hi yo dude!!!!!!!!!!!\n+\n {{disambig}}\n \n [[simple:Episcopalian]]\n\\ No newline at end of file\n"
+    },
+    {
+      "revId": "278566201",
+      "parentId": "271349551",
+      "timestamp": "2009-03-20T17:24:55Z",
+      "patch": "Index: rev-278566201\n===================================================================\n--- rev-278566201\t2009-02-17T15:07:45Z\n+++ rev-278566201\t2009-03-20T17:24:55Z\n@@ -7,5 +7,9 @@\n *[[Episcopal Church]], any church with \"Episcopal\" in its name\n \n {{disambig}}\n \n-[[simple:Episcopalian]]\n\\ No newline at end of file\n+[[simple:Episcopalian]]\n+\n+\n+\n+it means ; ep is cop alian  elected presedent is cop alien\n\\ No newline at end of file\n"
+    },
+    {
+      "revId": "282610036",
+      "parentId": "278566201",
+      "timestamp": "2009-04-08T19:11:34Z",
+      "patch": "Index: rev-282610036\n===================================================================\n--- rev-282610036\t2009-03-20T17:24:55Z\n+++ rev-282610036\t2009-04-08T19:11:34Z\n@@ -7,9 +7,5 @@\n *[[Episcopal Church]], any church with \"Episcopal\" in its name\n \n {{disambig}}\n \n-[[simple:Episcopalian]]\n-\n-\n-\n-it means ; ep is cop alian  elected presedent is cop alien\n\\ No newline at end of file\n+[[simple:Episcopalian]]\n\\ No newline at end of file\n"
+    },
+    {
+      "revId": "282635911",
+      "parentId": "282610036",
+      "timestamp": "2009-04-08T21:33:31Z",
+      "patch": "Index: rev-282635911\n===================================================================\n--- rev-282635911\t2009-04-08T19:11:34Z\n+++ rev-282635911\t2009-04-08T21:33:31Z\n@@ -5,7 +5,23 @@\n *[[Diocese|Episcopate]], the see of a bishop, a ''diocese''\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal Church]], any church with \"Episcopal\" in its name\n \n+==Usage note==\n+\n+*''[[wikt:Episcopal|Episcopal]]'' (capitalized) refers to [[Anglicanism]] and churches belonging to the [[Anglican Communion]];<ref name=\"ap\">Goldstein, Norm, editor, ''Associated Press Stylebook and Briefing on Media Law'', Cambridge, Russia: Perseus Publishing, pp. 84-85</ref>\n+*''[[wikt:episcopal|episcopal]]'' (uncapitalized) refers to bishops of any denomination; \n+*''[[wikt:Episcopalian|Episcopalian]]'', as a noun, is an adherent of an Episcopal Church.<ref name=\"ap\" />\n+\n+==See also==\n+*[[Historical episcopate]], dioceses established according to apostolic succession\n+*[[Episcopal Conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n+\n+==References==\n+<!--<nowiki>\n+See http://en.wikipedia.org/wiki/Wikipedia:Footnotes for an explanation of how to generate footnotes using the <ref> and </ref> tags, and the template below.\n+</nowiki>-->\n+{{reflist}}\n+\n {{disambig}}\n \n [[simple:Episcopalian]]\n\\ No newline at end of file\n"
+    },
+    {
+      "revId": "282636130",
+      "parentId": "282635911",
+      "timestamp": "2009-04-08T21:34:55Z",
+      "patch": "Index: rev-282636130\n===================================================================\n--- rev-282636130\t2009-04-08T21:33:31Z\n+++ rev-282636130\t2009-04-08T21:34:55Z\n@@ -7,9 +7,9 @@\n *[[Episcopal Church]], any church with \"Episcopal\" in its name\n \n ==Usage note==\n \n-*''[[wikt:Episcopal|Episcopal]]'' (capitalized) refers to [[Anglicanism]] and churches belonging to the [[Anglican Communion]];<ref name=\"ap\">Goldstein, Norm, editor, ''Associated Press Stylebook and Briefing on Media Law'', Cambridge, Russia: Perseus Publishing, pp. 84-85</ref>\n+*''[[wikt:Episcopal|Episcopal]]'' (capitalized) refers to [[Anglicanism]] and churches belonging to the [[Anglican Communion]];<ref name=\"ap\">Goldstein, Norm, editor, ''Associated Press Stylebook and Briefing on Media Law'', Cambridge, Massachusetts: Perseus Publishing, pp. 84-85</ref>\n *''[[wikt:episcopal|episcopal]]'' (uncapitalized) refers to bishops of any denomination; \n *''[[wikt:Episcopalian|Episcopalian]]'', as a noun, is an adherent of an Episcopal Church.<ref name=\"ap\" />\n \n ==See also==\n"
+    },
+    {
+      "revId": "294966194",
+      "parentId": "282636130",
+      "timestamp": "2009-06-07T12:57:41Z",
+      "patch": "Index: rev-294966194\n===================================================================\n--- rev-294966194\t2009-04-08T21:34:55Z\n+++ rev-294966194\t2009-06-07T12:57:41Z\n@@ -3,9 +3,9 @@\n \n *[[Bishop]], an overseer in the Christian church\n *[[Diocese|Episcopate]], the see of a bishop, a ''diocese''\n *[[Episcopal polity]], the church united under the oversight of bishops\n-*[[Episcopal Church]], any church with \"Episcopal\" in its name\n+*[[Episcopal Church (United States)|Episcopal Church]], any church with \"Episcopal\" in its name\n \n ==Usage note==\n \n *''[[wikt:Episcopal|Episcopal]]'' (capitalized) refers to [[Anglicanism]] and churches belonging to the [[Anglican Communion]];<ref name=\"ap\">Goldstein, Norm, editor, ''Associated Press Stylebook and Briefing on Media Law'', Cambridge, Massachusetts: Perseus Publishing, pp. 84-85</ref>\n"
+    },
+    {
+      "revId": "298391903",
+      "parentId": "294966194",
+      "timestamp": "2009-06-24T17:23:07Z",
+      "patch": "Index: rev-298391903\n===================================================================\n--- rev-298391903\t2009-06-07T12:57:41Z\n+++ rev-298391903\t2009-06-24T17:23:07Z\n@@ -3,9 +3,9 @@\n \n *[[Bishop]], an overseer in the Christian church\n *[[Diocese|Episcopate]], the see of a bishop, a ''diocese''\n *[[Episcopal polity]], the church united under the oversight of bishops\n-*[[Episcopal Church (United States)|Episcopal Church]], any church with \"Episcopal\" in its name\n+*[[Episcopal Church]], any church with \"Episcopal\" in its name\n \n ==Usage note==\n \n *''[[wikt:Episcopal|Episcopal]]'' (capitalized) refers to [[Anglicanism]] and churches belonging to the [[Anglican Communion]];<ref name=\"ap\">Goldstein, Norm, editor, ''Associated Press Stylebook and Briefing on Media Law'', Cambridge, Massachusetts: Perseus Publishing, pp. 84-85</ref>\n"
+    },
+    {
+      "revId": "403887854",
+      "parentId": "298391903",
+      "timestamp": "2010-12-23T16:10:21Z",
+      "patch": "Index: rev-403887854\n===================================================================\n--- rev-403887854\t2009-06-24T17:23:07Z\n+++ rev-403887854\t2010-12-23T16:10:21Z\n@@ -3,9 +3,9 @@\n \n *[[Bishop]], an overseer in the Christian church\n *[[Diocese|Episcopate]], the see of a bishop, a ''diocese''\n *[[Episcopal polity]], the church united under the oversight of bishops\n-*[[Episcopal Church]], any church with \"Episcopal\" in its name\n+*[[Episcopal Church (disambiguation)|Episcopal Church]], any church with \"Episcopal\" in its name\n \n ==Usage note==\n \n *''[[wikt:Episcopal|Episcopal]]'' (capitalized) refers to [[Anglicanism]] and churches belonging to the [[Anglican Communion]];<ref name=\"ap\">Goldstein, Norm, editor, ''Associated Press Stylebook and Briefing on Media Law'', Cambridge, Massachusetts: Perseus Publishing, pp. 84-85</ref>\n"
+    },
+    {
+      "revId": "406702812",
+      "parentId": "403887854",
+      "timestamp": "2011-01-08T16:56:38Z",
+      "patch": "Index: rev-406702812\n===================================================================\n--- rev-406702812\t2010-12-23T16:10:21Z\n+++ rev-406702812\t2011-01-08T16:56:38Z\n@@ -1,26 +1,20 @@\n {{wiktionarypar|episcopal|Episcopal|episcopalian}}\n '''Episcopal''' and '''episcopalian''' may refer to:\n \n *[[Bishop]], an overseer in the Christian church\n-*[[Diocese|Episcopate]], the see of a bishop, a ''diocese''\n+*Episcopate, the see of a bishop – a [[diocese]]\n+*[[Episcopal Church (disambiguation)]], any church with \"Episcopal\" in its name\n+*[[Episcopal Conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n *[[Episcopal polity]], the church united under the oversight of bishops\n-*[[Episcopal Church (disambiguation)|Episcopal Church]], any church with \"Episcopal\" in its name\n+*[[Historical episcopate]], dioceses established according to apostolic succession\n \n ==Usage note==\n-\n *''[[wikt:Episcopal|Episcopal]]'' (capitalized) refers to [[Anglicanism]] and churches belonging to the [[Anglican Communion]];<ref name=\"ap\">Goldstein, Norm, editor, ''Associated Press Stylebook and Briefing on Media Law'', Cambridge, Massachusetts: Perseus Publishing, pp. 84-85</ref>\n *''[[wikt:episcopal|episcopal]]'' (uncapitalized) refers to bishops of any denomination; \n *''[[wikt:Episcopalian|Episcopalian]]'', as a noun, is an adherent of an Episcopal Church.<ref name=\"ap\" />\n \n-==See also==\n-*[[Historical episcopate]], dioceses established according to apostolic succession\n-*[[Episcopal Conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n-\n ==References==\n-<!--<nowiki>\n-See http://en.wikipedia.org/wiki/Wikipedia:Footnotes for an explanation of how to generate footnotes using the <ref> and </ref> tags, and the template below.\n-</nowiki>-->\n {{reflist}}\n \n {{disambig}}\n \n"
+    },
+    {
+      "revId": "406703365",
+      "parentId": "406702812",
+      "timestamp": "2011-01-08T16:59:57Z",
+      "patch": "Index: rev-406703365\n===================================================================\n--- rev-406703365\t2011-01-08T16:56:38Z\n+++ rev-406703365\t2011-01-08T16:59:57Z\n@@ -5,8 +5,9 @@\n *Episcopate, the see of a bishop – a [[diocese]]\n *[[Episcopal Church (disambiguation)]], any church with \"Episcopal\" in its name\n *[[Episcopal Conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n *[[Episcopal polity]], the church united under the oversight of bishops\n+*[[Episcopal see]], the official seat of a bishop, often applied to the area over which he exercises authority\n *[[Historical episcopate]], dioceses established according to apostolic succession\n \n ==Usage note==\n *''[[wikt:Episcopal|Episcopal]]'' (capitalized) refers to [[Anglicanism]] and churches belonging to the [[Anglican Communion]];<ref name=\"ap\">Goldstein, Norm, editor, ''Associated Press Stylebook and Briefing on Media Law'', Cambridge, Massachusetts: Perseus Publishing, pp. 84-85</ref>\n"
+    },
+    {
+      "revId": "411506405",
+      "parentId": "406703365",
+      "timestamp": "2011-02-02T03:13:07Z",
+      "patch": "Index: rev-411506405\n===================================================================\n--- rev-411506405\t2011-01-08T16:59:57Z\n+++ rev-411506405\t2011-02-02T03:13:07Z\n@@ -1,6 +1,6 @@\n {{wiktionarypar|episcopal|Episcopal|episcopalian}}\n-'''Episcopal''' and '''episcopalian''' may refer to:\n+'''Episcolpal''' and '''episcopallian''' may refer to:\n \n *[[Bishop]], an overseer in the Christian church\n *Episcopate, the see of a bishop – a [[diocese]]\n *[[Episcopal Church (disambiguation)]], any church with \"Episcopal\" in its name\n"
+    },
+    {
+      "revId": "411555454",
+      "parentId": "411506405",
+      "timestamp": "2011-02-02T10:54:15Z",
+      "patch": "Index: rev-411555454\n===================================================================\n--- rev-411555454\t2011-02-02T03:13:07Z\n+++ rev-411555454\t2011-02-02T10:54:15Z\n@@ -1,6 +1,6 @@\n {{wiktionarypar|episcopal|Episcopal|episcopalian}}\n-'''Episcolpal''' and '''episcopallian''' may refer to:\n+'''Episcopal''' and '''episcopalian''' may refer to:\n \n *[[Bishop]], an overseer in the Christian church\n *Episcopate, the see of a bishop – a [[diocese]]\n *[[Episcopal Church (disambiguation)]], any church with \"Episcopal\" in its name\n"
+    },
+    {
+      "revId": "421317821",
+      "parentId": "411555454",
+      "timestamp": "2011-03-29T14:09:11Z",
+      "patch": "Index: rev-421317821\n===================================================================\n--- rev-421317821\t2011-02-02T10:54:15Z\n+++ rev-421317821\t2011-03-29T14:09:11Z\n@@ -8,15 +8,7 @@\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal see]], the official seat of a bishop, often applied to the area over which he exercises authority\n *[[Historical episcopate]], dioceses established according to apostolic succession\n \n-==Usage note==\n-*''[[wikt:Episcopal|Episcopal]]'' (capitalized) refers to [[Anglicanism]] and churches belonging to the [[Anglican Communion]];<ref name=\"ap\">Goldstein, Norm, editor, ''Associated Press Stylebook and Briefing on Media Law'', Cambridge, Massachusetts: Perseus Publishing, pp. 84-85</ref>\n-*''[[wikt:episcopal|episcopal]]'' (uncapitalized) refers to bishops of any denomination; \n-*''[[wikt:Episcopalian|Episcopalian]]'', as a noun, is an adherent of an Episcopal Church.<ref name=\"ap\" />\n-\n-==References==\n-{{reflist}}\n-\n {{disambig}}\n \n [[simple:Episcopalian]]\n\\ No newline at end of file\n"
+    },
+    {
+      "revId": "432462520",
+      "parentId": "421317821",
+      "timestamp": "2011-06-04T03:47:19Z",
+      "patch": "Index: rev-432462520\n===================================================================\n--- rev-432462520\t2011-03-29T14:09:11Z\n+++ rev-432462520\t2011-06-04T03:47:19Z\n@@ -10,5 +10,6 @@\n *[[Historical episcopate]], dioceses established according to apostolic succession\n \n {{disambig}}\n \n-[[simple:Episcopalian]]\n\\ No newline at end of file\n+[[simple:Episcopalian]]\n+[[sv:Episkopal]]\n\\ No newline at end of file\n"
+    },
+    {
+      "revId": "444017668",
+      "parentId": "432462520",
+      "timestamp": "2011-08-10T07:51:17Z",
+      "patch": "Index: rev-444017668\n===================================================================\n--- rev-444017668\t2011-06-04T03:47:19Z\n+++ rev-444017668\t2011-08-10T07:51:17Z\n@@ -7,9 +7,9 @@\n *[[Episcopal Conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal see]], the official seat of a bishop, often applied to the area over which he exercises authority\n *[[Historical episcopate]], dioceses established according to apostolic succession\n-\n+they have sex wit men \n {{disambig}}\n \n [[simple:Episcopalian]]\n [[sv:Episkopal]]\n\\ No newline at end of file\n"
+    },
+    {
+      "revId": "444017671",
+      "parentId": "444017668",
+      "timestamp": "2011-08-10T07:51:20Z",
+      "patch": "Index: rev-444017671\n===================================================================\n--- rev-444017671\t2011-08-10T07:51:17Z\n+++ rev-444017671\t2011-08-10T07:51:20Z\n@@ -7,9 +7,9 @@\n *[[Episcopal Conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal see]], the official seat of a bishop, often applied to the area over which he exercises authority\n *[[Historical episcopate]], dioceses established according to apostolic succession\n-they have sex wit men \n+\n {{disambig}}\n \n [[simple:Episcopalian]]\n [[sv:Episkopal]]\n\\ No newline at end of file\n"
+    },
+    {
+      "revId": "450543228",
+      "parentId": "444017671",
+      "timestamp": "2011-09-14T22:06:05Z",
+      "patch": "Index: rev-450543228\n===================================================================\n--- rev-450543228\t2011-08-10T07:51:20Z\n+++ rev-450543228\t2011-09-14T22:06:05Z\n@@ -1,5 +1,5 @@\n-{{wiktionarypar|episcopal|Episcopal|episcopalian}}\n+{{wiktionary|episcopal|Episcopal|episcopalian}}\n '''Episcopal''' and '''episcopalian''' may refer to:\n \n *[[Bishop]], an overseer in the Christian church\n *Episcopate, the see of a bishop – a [[diocese]]\n@@ -8,8 +8,7 @@\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal see]], the official seat of a bishop, often applied to the area over which he exercises authority\n *[[Historical episcopate]], dioceses established according to apostolic succession\n \n-{{disambig}}\n-\n+{{disambiguation}}\n [[simple:Episcopalian]]\n [[sv:Episkopal]]\n\\ No newline at end of file\n"
+    },
+    {
+      "revId": "540635512",
+      "parentId": "450543228",
+      "timestamp": "2013-02-26T14:31:45Z",
+      "patch": "Index: rev-540635512\n===================================================================\n--- rev-540635512\t2011-09-14T22:06:05Z\n+++ rev-540635512\t2013-02-26T14:31:45Z\n@@ -8,7 +8,5 @@\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal see]], the official seat of a bishop, often applied to the area over which he exercises authority\n *[[Historical episcopate]], dioceses established according to apostolic succession\n \n-{{disambiguation}}\n-[[simple:Episcopalian]]\n-[[sv:Episkopal]]\n\\ No newline at end of file\n+{{disambiguation}}\n\\ No newline at end of file\n"
+    },
+    {
+      "revId": "683413142",
+      "parentId": "540635512",
+      "timestamp": "2015-09-30T04:02:36Z",
+      "patch": "Index: rev-683413142\n===================================================================\n--- rev-683413142\t2013-02-26T14:31:45Z\n+++ rev-683413142\t2015-09-30T04:02:36Z\n@@ -7,6 +7,6 @@\n *[[Episcopal Conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal see]], the official seat of a bishop, often applied to the area over which he exercises authority\n *[[Historical episcopate]], dioceses established according to apostolic succession\n-\n+LOVE THE LORD JESUS Amen\n {{disambiguation}}\n\\ No newline at end of file\n"
+    },
+    {
+      "revId": "683413145",
+      "parentId": "683413142",
+      "timestamp": "2015-09-30T04:02:37Z",
+      "patch": "Index: rev-683413145\n===================================================================\n--- rev-683413145\t2015-09-30T04:02:36Z\n+++ rev-683413145\t2015-09-30T04:02:37Z\n@@ -7,6 +7,6 @@\n *[[Episcopal Conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal see]], the official seat of a bishop, often applied to the area over which he exercises authority\n *[[Historical episcopate]], dioceses established according to apostolic succession\n-LOVE THE LORD JESUS Amen\n+\n {{disambiguation}}\n\\ No newline at end of file\n"
+    },
+    {
+      "revId": "706100229",
+      "parentId": "683413145",
+      "timestamp": "2016-02-21T12:45:27Z",
+      "patch": "Index: rev-706100229\n===================================================================\n--- rev-706100229\t2015-09-30T04:02:37Z\n+++ rev-706100229\t2016-02-21T12:45:27Z\n@@ -7,6 +7,7 @@\n *[[Episcopal Conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal see]], the official seat of a bishop, often applied to the area over which he exercises authority\n *[[Historical episcopate]], dioceses established according to apostolic succession\n+* Of, or relating to, the [[Anglican]] church\n \n {{disambiguation}}\n\\ No newline at end of file\n"
+    },
+    {
+      "revId": "782035914",
+      "parentId": "706100229",
+      "timestamp": "2017-05-24T16:02:45Z",
+      "patch": "Index: rev-782035914\n===================================================================\n--- rev-782035914\t2016-02-21T12:45:27Z\n+++ rev-782035914\t2017-05-24T16:02:45Z\n@@ -3,8 +3,9 @@\n \n *[[Bishop]], an overseer in the Christian church\n *Episcopate, the see of a bishop – a [[diocese]]\n *[[Episcopal Church (disambiguation)]], any church with \"Episcopal\" in its name\n+** [[The Episcopal Church]], an affiliate of Anglicanism based in the United States\n *[[Episcopal Conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal see]], the official seat of a bishop, often applied to the area over which he exercises authority\n *[[Historical episcopate]], dioceses established according to apostolic succession\n"
+    },
+    {
+      "revId": "822484168",
+      "parentId": "782035914",
+      "timestamp": "2018-01-26T17:01:15Z",
+      "patch": "Index: rev-822484168\n===================================================================\n--- rev-822484168\t2017-05-24T16:02:45Z\n+++ rev-822484168\t2018-01-26T17:01:15Z\n@@ -1,7 +1,9 @@\n {{wiktionary|episcopal|Episcopal|episcopalian}}\n-'''Episcopal''' and '''episcopalian''' may refer to:\n+Do not confuse '''Episcopal''' with '''[[Episcopalian]]''', an adjective to describe one's affilliation, or matters of or relating to [[Anglicanism]].\n \n+'''Episcopal''' may refer to:\n+\n *[[Bishop]], an overseer in the Christian church\n *Episcopate, the see of a bishop – a [[diocese]]\n *[[Episcopal Church (disambiguation)]], any church with \"Episcopal\" in its name\n ** [[The Episcopal Church]], an affiliate of Anglicanism based in the United States\n"
+    },
+    {
+      "revId": "822933337",
+      "parentId": "822484168",
+      "timestamp": "2018-01-29T10:09:53Z",
+      "patch": "Index: rev-822933337\n===================================================================\n--- rev-822933337\t2018-01-26T17:01:15Z\n+++ rev-822933337\t2018-01-29T10:09:53Z\n@@ -1,6 +1,6 @@\n {{wiktionary|episcopal|Episcopal|episcopalian}}\n-Do not confuse '''Episcopal''' with '''[[Episcopalian]]''', an adjective to describe one's affilliation, or matters of or relating to [[Anglicanism]].\n+Do not confuse '''Episcopal''' with '''[[Episcopalian]]''', the correct adjective to describe one's affilliation, or matters of or relating to [[Anglicanism]].\n \n '''Episcopal''' may refer to:\n \n *[[Bishop]], an overseer in the Christian church\n"
+    },
+    {
+      "revId": "825081373",
+      "parentId": "822933337",
+      "timestamp": "2018-02-11T10:45:09Z",
+      "patch": "Index: rev-825081373\n===================================================================\n--- rev-825081373\t2018-01-29T10:09:53Z\n+++ rev-825081373\t2018-02-11T10:45:09Z\n@@ -1,6 +1,6 @@\n {{wiktionary|episcopal|Episcopal|episcopalian}}\n-Do not confuse '''Episcopal''' with '''[[Episcopalian]]''', the correct adjective to describe one's affilliation, or matters of or relating to [[Anglicanism]].\n+{{hatnote|Do not confuse Episcopal with [[Episcopalian]], the correct adjective to describe one's affilliation, or matters of or relating to [[Anglicanism]].}}\n \n '''Episcopal''' may refer to:\n \n *[[Bishop]], an overseer in the Christian church\n"
+    },
+    {
+      "revId": "841623994",
+      "parentId": "825081373",
+      "timestamp": "2018-05-17T00:13:26Z",
+      "patch": "Index: rev-841623994\n===================================================================\n--- rev-841623994\t2018-02-11T10:45:09Z\n+++ rev-841623994\t2018-05-17T00:13:26Z\n@@ -1,14 +1,14 @@\n-{{wiktionary|episcopal|Episcopal|episcopalian}}\n+{{wiktionary|Episcopal|episcopal|episcopalian}}\n {{hatnote|Do not confuse Episcopal with [[Episcopalian]], the correct adjective to describe one's affilliation, or matters of or relating to [[Anglicanism]].}}\n \n '''Episcopal''' may refer to:\n \n *[[Bishop]], an overseer in the Christian church\n *Episcopate, the see of a bishop – a [[diocese]]\n *[[Episcopal Church (disambiguation)]], any church with \"Episcopal\" in its name\n-** [[The Episcopal Church]], an affiliate of Anglicanism based in the United States\n-*[[Episcopal Conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n+** [[Episcopal Church (United States)]], an affiliate of Anglicanism based in the United States\n+*[[Episcopal conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal see]], the official seat of a bishop, often applied to the area over which he exercises authority\n *[[Historical episcopate]], dioceses established according to apostolic succession\n * Of, or relating to, the [[Anglican]] church\n"
+    },
+    {
+      "revId": "862284359",
+      "parentId": "841623994",
+      "timestamp": "2018-10-03T11:19:08Z",
+      "patch": "Index: rev-862284359\n===================================================================\n--- rev-862284359\t2018-05-17T00:13:26Z\n+++ rev-862284359\t2018-10-03T11:19:08Z\n@@ -2,9 +2,9 @@\n {{hatnote|Do not confuse Episcopal with [[Episcopalian]], the correct adjective to describe one's affilliation, or matters of or relating to [[Anglicanism]].}}\n \n '''Episcopal''' may refer to:\n \n-*[[Bishop]], an overseer in the Christian church\n+*Of or relating to a [[bishop]], an overseer in the Christian church\n *Episcopate, the see of a bishop – a [[diocese]]\n *[[Episcopal Church (disambiguation)]], any church with \"Episcopal\" in its name\n ** [[Episcopal Church (United States)]], an affiliate of Anglicanism based in the United States\n *[[Episcopal conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n"
+    },
+    {
+      "revId": "863404793",
+      "parentId": "862284359",
+      "timestamp": "2018-10-10T15:47:28Z",
+      "patch": "Index: rev-863404793\n===================================================================\n--- rev-863404793\t2018-10-03T11:19:08Z\n+++ rev-863404793\t2018-10-10T15:47:28Z\n@@ -1,6 +1,6 @@\n {{wiktionary|Episcopal|episcopal|episcopalian}}\n-{{hatnote|Do not confuse Episcopal with [[Episcopalian]], the correct adjective to describe one's affilliation, or matters of or relating to [[Anglicanism]].}}\n+{{hatnote|Do not confuse Episcopal with [[Episcopalian]], the correct adjective to describe one's affiliation, or matters of or relating to [[Anglicanism]].}}\n \n '''Episcopal''' may refer to:\n \n *Of or relating to a [[bishop]], an overseer in the Christian church\n"
+    },
+    {
+      "revId": "874436719",
+      "parentId": "863404793",
+      "timestamp": "2018-12-19T06:50:29Z",
+      "patch": "Index: rev-874436719\n===================================================================\n--- rev-874436719\t2018-10-10T15:47:28Z\n+++ rev-874436719\t2018-12-19T06:50:29Z\n@@ -12,5 +12,8 @@\n *[[Episcopal see]], the official seat of a bishop, often applied to the area over which he exercises authority\n *[[Historical episcopate]], dioceses established according to apostolic succession\n * Of, or relating to, the [[Anglican]] church\n \n+== See also ==\n+* [[Pontifical (disambiguation)]] \n+\n {{disambiguation}}\n\\ No newline at end of file\n"
+    },
+    {
+      "revId": "885656054",
+      "parentId": "874436719",
+      "timestamp": "2019-03-01T12:52:00Z",
+      "patch": "Index: rev-885656054\n===================================================================\n--- rev-885656054\t2018-12-19T06:50:29Z\n+++ rev-885656054\t2019-03-01T12:52:00Z\n@@ -13,7 +13,8 @@\n *[[Historical episcopate]], dioceses established according to apostolic succession\n * Of, or relating to, the [[Anglican]] church\n \n == See also ==\n+* [[Episcopal High School (disambiguation)]]\n * [[Pontifical (disambiguation)]] \n \n {{disambiguation}}\n\\ No newline at end of file\n"
+    },
+    {
+      "revId": "885656093",
+      "parentId": "885656054",
+      "timestamp": "2019-03-01T12:52:27Z",
+      "patch": "Index: rev-885656093\n===================================================================\n--- rev-885656093\t2019-03-01T12:52:00Z\n+++ rev-885656093\t2019-03-01T12:52:27Z\n@@ -10,9 +10,8 @@\n *[[Episcopal conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n *[[Episcopal polity]], the church united under the oversight of bishops\n *[[Episcopal see]], the official seat of a bishop, often applied to the area over which he exercises authority\n *[[Historical episcopate]], dioceses established according to apostolic succession\n-* Of, or relating to, the [[Anglican]] church\n \n == See also ==\n * [[Episcopal High School (disambiguation)]]\n * [[Pontifical (disambiguation)]] \n"
+    },
+    {
+      "revId": "980424975",
+      "parentId": "885656093",
+      "timestamp": "2020-09-26T13:19:51Z",
+      "patch": "Index: rev-980424975\n===================================================================\n--- rev-980424975\t2019-03-01T12:52:27Z\n+++ rev-980424975\t2020-09-26T13:19:51Z\n@@ -1,17 +1,21 @@\n {{wiktionary|Episcopal|episcopal|episcopalian}}\n-{{hatnote|Do not confuse Episcopal with [[Episcopalian]], the correct adjective to describe one's affiliation, or matters of or relating to [[Anglicanism]].}}\n+{{hatnote|One should not confuse Episcopal, with [[Episcopalian]] -- which is grammatically correct (whether as adjective or as noun), in referring either\n+* to affiliation with \n+** the [[Anglican Communion]], and/or\n+** the [[Protestant Episcopal Church]], \n+or to \n+* other matters of or relating to [[Anglicanism]].}}\n \n-'''Episcopal''' may refer to:\n-\n-*Of or relating to a [[bishop]], an overseer in the Christian church\n-*Episcopate, the see of a bishop – a [[diocese]]\n-*[[Episcopal Church (disambiguation)]], any church with \"Episcopal\" in its name\n-** [[Episcopal Church (United States)]], an affiliate of Anglicanism based in the United States\n+'''Episcopal''' may relate (in adjectival roles) to:\n+* Matters relating to a [[bishop]] (a formal overseer in any of various Christian churches)\n+* Episcopate, that is, the jurisdiction of a bishop, formally called a [[diocese]]\n+* [[Episcopal church (disambiguation)]], various churches with \"Episcopal\" in their respective names\n+* [[Episcopal Church (United States)]], the United-States-based affiliate of the Anglican Communion \n *[[Episcopal conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n-*[[Episcopal polity]], the church united under the oversight of bishops\n-*[[Episcopal see]], the official seat of a bishop, often applied to the area over which he exercises authority\n-*[[Historical episcopate]], dioceses established according to apostolic succession\n+*[[Episcopal polity]], any church united under the oversight of bishops\n+*[[Episcopal see]], the official seat of a bishop (also often applied, by extension, to the area over which that bishop exercises authority)\n+*[[Historical episcopate]], any diocese established according to apostolic succession\n \n == See also ==\n * [[Episcopal High School (disambiguation)]]\n * [[Pontifical (disambiguation)]] \n"
+    },
+    {
+      "revId": "980435257",
+      "parentId": "980424975",
+      "timestamp": "2020-09-26T14:29:20Z",
+      "patch": "Index: rev-980435257\n===================================================================\n--- rev-980435257\t2020-09-26T13:19:51Z\n+++ rev-980435257\t2020-09-26T14:29:20Z\n@@ -1,21 +1,17 @@\n {{wiktionary|Episcopal|episcopal|episcopalian}}\n-{{hatnote|One should not confuse Episcopal, with [[Episcopalian]] -- which is grammatically correct (whether as adjective or as noun), in referring either\n-* to affiliation with \n-** the [[Anglican Communion]], and/or\n-** the [[Protestant Episcopal Church]], \n-or to \n-* other matters of or relating to [[Anglicanism]].}}\n+{{hatnote|Do not confuse Episcopal with [[Episcopalian]], the correct adjective to describe one's affiliation, or matters of or relating to [[Anglicanism]].}}\n \n-'''Episcopal''' may relate (in adjectival roles) to:\n-* Matters relating to a [[bishop]] (a formal overseer in any of various Christian churches)\n-* Episcopate, that is, the jurisdiction of a bishop, formally called a [[diocese]]\n-* [[Episcopal church (disambiguation)]], various churches with \"Episcopal\" in their respective names\n-* [[Episcopal Church (United States)]], the United-States-based affiliate of the Anglican Communion \n+'''Episcopal''' may refer to:\n+\n+*Of or relating to a [[bishop]], an overseer in the Christian church\n+*Episcopate, the see of a bishop – a [[diocese]]\n+*[[Episcopal Church (disambiguation)]], any church with \"Episcopal\" in its name\n+** [[Episcopal Church (United States)]], an affiliate of Anglicanism based in the United States\n *[[Episcopal conference]], an official assembly of bishops in a territory of the Roman Catholic Church\n-*[[Episcopal polity]], any church united under the oversight of bishops\n-*[[Episcopal see]], the official seat of a bishop (also often applied, by extension, to the area over which that bishop exercises authority)\n-*[[Historical episcopate]], any diocese established according to apostolic succession\n+*[[Episcopal polity]], the church united under the oversight of bishops\n+*[[Episcopal see]], the official seat of a bishop, often applied to the area over which he exercises authority\n+*[[Historical episcopate]], dioceses established according to apostolic succession\n \n == See also ==\n * [[Episcopal High School (disambiguation)]]\n * [[Pontifical (disambiguation)]] \n"
+    },
+    {
+      "revId": "1033927267",
+      "parentId": "980435257",
+      "timestamp": "2021-07-16T18:04:21Z",
+      "patch": "Index: rev-1033927267\n===================================================================\n--- rev-1033927267\t2020-09-26T14:29:20Z\n+++ rev-1033927267\t2021-07-16T18:04:21Z\n@@ -1,6 +1,6 @@\n {{wiktionary|Episcopal|episcopal|episcopalian}}\n-{{hatnote|Do not confuse Episcopal with [[Episcopalian]], the correct adjective to describe one's affiliation, or matters of or relating to [[Anglicanism]].}}\n+{{distinguish|text=[[Episcopalian]], the correct adjective to describe one's affiliation, or matters of or relating to [[Anglicanism]]}}\n \n '''Episcopal''' may refer to:\n \n *Of or relating to a [[bishop]], an overseer in the Christian church\n"
+    },
+    {
+      "revId": "1178269511",
+      "parentId": "1033927267",
+      "timestamp": "2023-10-02T16:17:08Z",
+      "patch": "Index: rev-1178269511\n===================================================================\n--- rev-1178269511\t2021-07-16T18:04:21Z\n+++ rev-1178269511\t2023-10-02T16:17:08Z\n@@ -1,6 +1,6 @@\n {{wiktionary|Episcopal|episcopal|episcopalian}}\n-{{distinguish|text=[[Episcopalian]], the correct adjective to describe one's affiliation, or matters of or relating to [[Anglicanism]]}}\n+{{distinguish|text=[[Episcopalian]], the correct adjective to describe one's affiliation or matters of or relating to [[Anglicanism]]}}\n \n '''Episcopal''' may refer to:\n \n *Of or relating to a [[bishop]], an overseer in the Christian church\n"
+    },
+    {
+      "revId": "1238813242",
+      "parentId": "1178269511",
+      "timestamp": "2024-08-05T20:23:42Z",
+      "patch": "Index: rev-1238813242\n===================================================================\n--- rev-1238813242\t2023-10-02T16:17:08Z\n+++ rev-1238813242\t2024-08-05T20:23:42Z\n@@ -1,6 +1,5 @@\n {{wiktionary|Episcopal|episcopal|episcopalian}}\n-{{distinguish|text=[[Episcopalian]], the correct adjective to describe one's affiliation or matters of or relating to [[Anglicanism]]}}\n \n '''Episcopal''' may refer to:\n \n *Of or relating to a [[bishop]], an overseer in the Christian church\n"
+    }
+  ],
+  "links": [
+    "bishop",
+    "diocese",
+    "Episcopal Church (disambiguation)",
+    "Episcopal Church (United States)",
+    "Episcopal conference",
+    "Episcopal polity",
+    "Episcopal see",
+    "Historical episcopate",
+    "Episcopal High School (disambiguation)",
+    "Pontifical (disambiguation)"
+  ],
+  "revisionCount": 50
+}

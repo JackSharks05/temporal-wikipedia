@@ -41,8 +41,7 @@ please check first500-lines-from-enwiki-dump.txt for reference
 
 ```
 # Output Structure
-Each article is output in this format:
-
+Each article is output in this format: (please check crawler/crawler-first-5-output for reference)
 ```javascript
 {
   title: "X",           // article title 
@@ -66,26 +65,68 @@ Each article is output in this format:
 }
 ```
 
-# How to use
-## Option A: Stream from dump
+# How to use 
+## API Reference
+### processDump(dumpPath, options)
 ```javascript
-processDump('dump.xml.bz2', {
-  onArticle: (article) => {
-    // Index this article
-  }
+const articles = await processDump('dump.xml.bz2', {
+  limit: 1000,                    // optional: max articles to process
+  onArticle: (article) => {...},  // optional: callback per article (for streaming)
+  onComplete: (articles) => {...} // optional: callback when done
 });
 ```
-## Option B: Load from JSON files
+
+#### Option B: Load from JSON files
 ```bash
-node crawler/dumpProcessor.js dump.bz2 --output ./data
+node crawler/crawler.js dump.bz2 --output ./data
 // Then read JSON files
+```
+
+### reconstructAtDate(article, targetDate)
+```javascript
+const result = reconstructAtDate(article, '2015-06-01');
+// return: { content: "...", timestamp: "2015-05-28T14:30:00Z" }  OR null 
+```
+
+### reconstructAtRevision(article, revisionId)
+```javascript
+const content = reconstructAtRevision(article, '101');
+// return: "Article content at revision 101..."
+```
+
+### extractPlainText(wikitext)
+removes:
+- Bold/italic markers (`'''`, `''`)
+- Internal links (`[[Link]]` → `Link`, `[[Link|text]]` → `text`)
+- External links
+- Templates (`{{...}}`)
+- References (`<ref>...</ref>`)
+- HTML tags
+- Category links
+- File/Image links
+
+### extractLinks(wikitext)
+extract internal wiki links from wikitext.
+```javascript
+const links = extractLinks("See [[Twice]] and [[NewJeans]]");
+// return ["Twice", "NewJeans""]
+```
+
+### deltaEncode(revisions)
+delta encode an array of revisions.
+```javascript
+const encoded = deltaEncode([
+  { revId: '1', timestamp: '2020-01-01', content: 'Hello' },
+  { revId: '2', timestamp: '2020-06-01', content: 'Hello World' },
+]);
+// return: { base: {...}, deltas: [{...}] }
 ```
 
 # Quick Start
 ## CML
 ```bash
 # Process a Wikipedia dump (supports .xml, .xml.bz2, .xml.gz)
-node crawler/dumpProcessor.js <dump-file> [options]
+node crawler/crawler.js <dump-file> [options]
 ```
 
 ## Options
@@ -100,5 +141,5 @@ const {
   reconstructAtRevision,
   extractPlainText,
   extractLinks,
-} = require('./crawler/dumpProcessor');
+} = require('./crawler/crawler');
 ```

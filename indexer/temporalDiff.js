@@ -5,7 +5,7 @@ const {
   listArticles,
   getArticleActiveYears,
   getContentAtTimestamp,
-} = require('../storage/getStoredArticle');
+} = require('../storage/getArticle.js');
 
 const STOP_WORDS = new Set([
   'the', 'is', 'a', 'an', 'and', 'or', 'but', 'in', 'on',

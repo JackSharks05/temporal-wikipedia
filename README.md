@@ -1,12 +1,16 @@
-# temporal-wikipedia
 
-- crawl wikipedia (including many edits (all english))
-- search for how something was defined at a certain time period
-- also implement delta encoding (just changes)
+## Storage Ingestion
 
+Parse a Wikipedia dump and store article histories as 50-revision delta segments:
 
+```bash
+node storage/ingestDumpToStore.js path/to/dump.xml --limit 10 --port 9000
+```
 
-# individual implementations
+Inspect a stored article manifest:
 
-- distribution folder
-- non-dist/c folder
+```bash
+node storage/checkStoredArticle.js "Linearization" --title --port 9000
+```
+
+The local store is namespaced by node identity, so use the same `--ip` and `--port` when checking data that you used during ingestion.

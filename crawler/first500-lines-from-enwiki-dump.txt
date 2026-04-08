@@ -1,0 +1,500 @@
+<mediawiki xmlns="http://www.mediawiki.org/xml/export-0.11/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mediawiki.org/xml/export-0.11/ http://www.mediawiki.org/xml/export-0.11.xsd" version="0.11" xml:lang="en">
+  <siteinfo>
+    <sitename>Wikipedia</sitename>
+    <dbname>enwiki</dbname>
+    <base>https://en.wikipedia.org/wiki/Main_Page</base>
+    <generator>MediaWiki 1.46.0-wmf.17</generator>
+    <case>first-letter</case>
+    <namespaces>
+      <namespace key="-2" case="first-letter">Media</namespace>
+      <namespace key="-1" case="first-letter">Special</namespace>
+      <namespace key="0" case="first-letter" />
+      <namespace key="1" case="first-letter">Talk</namespace>
+      <namespace key="2" case="first-letter">User</namespace>
+      <namespace key="3" case="first-letter">User talk</namespace>
+      <namespace key="4" case="first-letter">Wikipedia</namespace>
+      <namespace key="5" case="first-letter">Wikipedia talk</namespace>
+      <namespace key="6" case="first-letter">File</namespace>
+      <namespace key="7" case="first-letter">File talk</namespace>
+      <namespace key="8" case="first-letter">MediaWiki</namespace>
+      <namespace key="9" case="first-letter">MediaWiki talk</namespace>
+      <namespace key="10" case="first-letter">Template</namespace>
+      <namespace key="11" case="first-letter">Template talk</namespace>
+      <namespace key="12" case="first-letter">Help</namespace>
+      <namespace key="13" case="first-letter">Help talk</namespace>
+      <namespace key="14" case="first-letter">Category</namespace>
+      <namespace key="15" case="first-letter">Category talk</namespace>
+      <namespace key="100" case="first-letter">Portal</namespace>
+      <namespace key="101" case="first-letter">Portal talk</namespace>
+      <namespace key="118" case="first-letter">Draft</namespace>
+      <namespace key="119" case="first-letter">Draft talk</namespace>
+      <namespace key="126" case="first-letter">MOS</namespace>
+      <namespace key="127" case="first-letter">MOS talk</namespace>
+      <namespace key="710" case="first-letter">TimedText</namespace>
+      <namespace key="711" case="first-letter">TimedText talk</namespace>
+      <namespace key="828" case="first-letter">Module</namespace>
+      <namespace key="829" case="first-letter">Module talk</namespace>
+      <namespace key="1728" case="first-letter">Event</namespace>
+      <namespace key="1729" case="first-letter">Event talk</namespace>
+    </namespaces>
+  </siteinfo>
+  <page>
+    <title>Epistle to the Phillipians</title>
+    <ns>0</ns>
+    <id>10062</id>
+    <redirect title="Epistle to the Philippians" />
+    <revision>
+      <id>249987</id>
+      <timestamp>2001-11-08T03:37:40Z</timestamp>
+      <contributor>
+        <username>65.68.87.xxx</username>
+        <id>0</id>
+      </contributor>
+      <comment>*</comment>
+      <origin>249987</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="37" sha1="8kq0eofr5eke57yhrhj7znmize3l1un" xml:space="preserve">#REDIRECT [[Epistle to Philipians]]
+
+</text>
+      <sha1>8kq0eofr5eke57yhrhj7znmize3l1un</sha1>
+    </revision>
+    <revision>
+      <id>793970</id>
+      <parentid>419389295</parentid>
+      <timestamp>2002-02-25T15:51:15Z</timestamp>
+      <contributor>
+        <username>Conversion script</username>
+        <id>1226483</id>
+      </contributor>
+      <minor />
+      <comment>Automated conversion</comment>
+      <origin>793970</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="38" sha1="jtgay3zuleteltxqbjx8gf94u9bezdm" xml:space="preserve">#REDIRECT [[Epistle to Philippians]]
+</text>
+      <sha1>jtgay3zuleteltxqbjx8gf94u9bezdm</sha1>
+    </revision>
+    <revision>
+      <id>15907901</id>
+      <parentid>793970</parentid>
+      <timestamp>2003-04-01T04:19:26Z</timestamp>
+      <contributor>
+        <username>Stephen C. Carlson</username>
+        <id>6004</id>
+      </contributor>
+      <minor />
+      <origin>15907901</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="40" sha1="jbuevd2vaho33q0p4daedhpzxf9f724" xml:space="preserve">#REDIRECT [[Epistle to the Philippians]]</text>
+      <sha1>jbuevd2vaho33q0p4daedhpzxf9f724</sha1>
+    </revision>
+    <revision>
+      <id>419389295</id>
+      <parentid>15907901</parentid>
+      <timestamp>2001-11-08T15:14:01Z</timestamp>
+      <contributor>
+        <username>216.99.203.xxx</username>
+        <id>0</id>
+      </contributor>
+      <comment>fix spelling</comment>
+      <origin>419389295</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="36" sha1="kz0q8s6bfi6sssk6yt0t0a1uw5kzu3e" xml:space="preserve">#REDIRECT [[Epistle to Philippians]]</text>
+      <sha1>kz0q8s6bfi6sssk6yt0t0a1uw5kzu3e</sha1>
+    </revision>
+    <revision>
+      <id>419389296</id>
+      <parentid>15907901</parentid>
+      <timestamp>2011-03-18T00:42:43Z</timestamp>
+      <contributor>
+        <username>Graham87</username>
+        <id>194203</id>
+      </contributor>
+      <minor />
+      <comment>1 revision from [[:nost:Epistle to the Phillipians]]: import old edit, see [[User:Graham87/Import]]</comment>
+      <origin>419389296</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="40" sha1="jbuevd2vaho33q0p4daedhpzxf9f724" xml:space="preserve">#REDIRECT [[Epistle to the Philippians]]</text>
+      <sha1>jbuevd2vaho33q0p4daedhpzxf9f724</sha1>
+    </revision>
+  </page>
+  <page>
+    <title>Epistle to Philippians</title>
+    <ns>0</ns>
+    <id>10063</id>
+    <redirect title="Epistle to the Philippians" />
+    <revision>
+      <id>15907902</id>
+      <timestamp>2002-02-25T15:51:15Z</timestamp>
+      <contributor>
+        <username>Stephen C. Carlson</username>
+        <id>6004</id>
+      </contributor>
+      <comment>moved to &quot;Epistle_to_the_Philippians&quot;</comment>
+      <origin>15907902</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="40" sha1="1479cc5svx94utlakfmgxjwfppyrtna" xml:space="preserve">#REDIRECT [[Epistle_to_the_Philippians]]
+</text>
+      <sha1>1479cc5svx94utlakfmgxjwfppyrtna</sha1>
+    </revision>
+    <revision>
+      <id>529146935</id>
+      <parentid>15907902</parentid>
+      <timestamp>2012-12-21T18:36:05Z</timestamp>
+      <contributor>
+        <username>MZMcBride</username>
+        <id>212624</id>
+      </contributor>
+      <minor />
+      <comment>[[bugzilla:42616]]</comment>
+      <origin>529146935</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="40" sha1="9rign6ika4cekn0b8dsj4umt5qegnzj" xml:space="preserve">#REDIRECT [[Epistle_to_the_Philippians]]</text>
+      <sha1>9rign6ika4cekn0b8dsj4umt5qegnzj</sha1>
+    </revision>
+  </page>
+  <page>
+    <title>Empirical formula</title>
+    <ns>0</ns>
+    <id>10065</id>
+    <revision>
+      <id>110399</id>
+      <parentid>249989</parentid>
+      <timestamp>2002-02-25T15:51:15Z</timestamp>
+      <contributor>
+        <username>Conversion script</username>
+        <id>1226483</id>
+      </contributor>
+      <minor />
+      <comment>Automated conversion</comment>
+      <origin>110399</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="497" sha1="e8bo1a4ulqcozq39l9rit0bbv4bdem6" xml:space="preserve">In [[chemistry]], the empirical formula of a chemical is a simple expression of the number of each type of atoms in it. An empirical formula deliberately makes no reference to [[isomer|isomerism]] or structure.
+
+For example, [[hexane]] could have a [[chemical formula]] of CH&lt;sub&gt;3&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;3&lt;/sub&gt;, implying that it a straight chain structure. However the empirical formula for the same molecule would be C&lt;sub&gt;6&lt;/sub&gt;H&lt;sub&gt;14&lt;/sub&gt;.
+</text>
+      <sha1>e8bo1a4ulqcozq39l9rit0bbv4bdem6</sha1>
+    </revision>
+    <revision>
+      <id>249989</id>
+      <timestamp>2001-11-08T14:02:43Z</timestamp>
+      <contributor>
+        <username>194.200.130.xxx</username>
+        <id>0</id>
+      </contributor>
+      <comment>Start</comment>
+      <origin>249989</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="493" sha1="1cuf9nntij2sui2z61mg7ewlah7rxnd" xml:space="preserve">In [[chemistry]], the empirical formula of a chemical is a simple expression of the number of each type of atoms in it. An empirical formula deliberately makes no reference to [[isomerism]] or structure.
+
+
+
+For example, [[hexane]] could have a [[chemical formula]] of CH&lt;sub&gt;3&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;3&lt;/sub&gt;, implying that it a straight chain structure. However the empirical formula for the same molecule would be C&lt;sub&gt;6&lt;/sub&gt;H&lt;sub&gt;14&lt;/sub&gt;.
+
+</text>
+      <sha1>1cuf9nntij2sui2z61mg7ewlah7rxnd</sha1>
+    </revision>
+    <revision>
+      <id>510147</id>
+      <parentid>110399</parentid>
+      <timestamp>2002-07-05T17:20:14Z</timestamp>
+      <contributor>
+        <ip>209.234.79.205</ip>
+      </contributor>
+      <comment>etymology of &amp;quot;empirical&amp;quot;, link to element</comment>
+      <origin>510147</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="716" sha1="m89rk64wjt1rh6uejpgb1eio6rtip5v" xml:space="preserve">In [[chemistry]], the empirical formula of a chemical is a simple expression of the relative number of each type of atom ([[element]]) in it. An empirical formula makes no reference to [[isomer|isomerism]] or structure.  The term empirical refers to the process of [[elemental analysis]], an [[analytical_chemistry | analytical]] technique used to determine the relative percent composition of a pure chemical substance by element.
+
+For example, [[hexane]] could have a [[chemical formula]] of CH&lt;sub&gt;3&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;3&lt;/sub&gt;, implying that it a straight chain structure. However the empirical formula for the same molecule would be C&lt;sub&gt;6&lt;/sub&gt;H&lt;sub&gt;14&lt;/sub&gt;.</text>
+      <sha1>m89rk64wjt1rh6uejpgb1eio6rtip5v</sha1>
+    </revision>
+    <revision>
+      <id>1184782</id>
+      <parentid>510147</parentid>
+      <timestamp>2002-12-17T09:44:00Z</timestamp>
+      <contributor>
+        <username>MartinHarper</username>
+        <id>5862</id>
+      </contributor>
+      <minor />
+      <comment>&quot;it a&quot;-&gt;&quot;it has a&quot;</comment>
+      <origin>1184782</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="720" sha1="i7um2w4e6o275dxfjnxaq7q7t5u629u" xml:space="preserve">In [[chemistry]], the empirical formula of a chemical is a simple expression of the relative number of each type of atom ([[element]]) in it. An empirical formula makes no reference to [[isomer|isomerism]] or structure.  The term empirical refers to the process of [[elemental analysis]], an [[analytical_chemistry | analytical]] technique used to determine the relative percent composition of a pure chemical substance by element.
+
+For example, [[hexane]] could have a [[chemical formula]] of CH&lt;sub&gt;3&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;3&lt;/sub&gt;, implying that it has a straight chain structure. However the empirical formula for the same molecule would be C&lt;sub&gt;6&lt;/sub&gt;H&lt;sub&gt;14&lt;/sub&gt;.</text>
+      <sha1>i7um2w4e6o275dxfjnxaq7q7t5u629u</sha1>
+    </revision>
+    <revision>
+      <id>1184806</id>
+      <parentid>1184782</parentid>
+      <timestamp>2003-07-23T14:13:52Z</timestamp>
+      <contributor>
+        <ip>155.38.7.140</ip>
+      </contributor>
+      <origin>1184806</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="719" sha1="6i57lc6xllq0ojzyv8s1t2350p94xp2" xml:space="preserve">In [[chemistry]], the empirical formula of a chemical is a simple expression of the relative number of each type of atom ([[element]]) in it. An empirical formula makes no reference to [[isomer|isomerism]] or structure.  The term empirical refers to the process of [[elemental analysis]], an [[analytical_chemistry | analytical]] technique used to determine the relative percent composition of a pure chemical substance by element.
+
+For example, [[hexane]] could have a [[chemical formula]] of CH&lt;sub&gt;3&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;3&lt;/sub&gt;, implying that it has a straight chain structure. However the empirical formula for the same molecule would be C&lt;sub&gt;3&lt;/sub&gt;H&lt;sub&gt;7&lt;/sub&gt;.</text>
+      <sha1>6i57lc6xllq0ojzyv8s1t2350p94xp2</sha1>
+    </revision>
+    <revision>
+      <id>2802168</id>
+      <parentid>1184806</parentid>
+      <timestamp>2003-07-23T14:21:41Z</timestamp>
+      <contributor>
+        <ip>155.38.7.140</ip>
+      </contributor>
+      <origin>2802168</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="785" sha1="fiolpuchsin9kz9s2kjw6ckatfn8jlq" xml:space="preserve">In [[chemistry]], the empirical formula of a chemical is a simple expression of the relative number of each type of atom ([[element]]) in it. An empirical formula makes no reference to [[isomer|isomerism]], structure, or absolute number of atoms.  The term empirical refers to the process of [[elemental analysis]], an [[analytical_chemistry | analytical]] technique used to determine the relative percent composition of a pure chemical substance by element.
+
+For example, [[hexane]] could have a [[chemical formula]] of CH&lt;sub&gt;3&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;3&lt;/sub&gt;, implying that it has a straight chain structure, 6 carbon atoms, and 14 hydrogen atoms. However the empirical formula for the same molecule would be C&lt;sub&gt;3&lt;/sub&gt;H&lt;sub&gt;7&lt;/sub&gt;.</text>
+      <sha1>fiolpuchsin9kz9s2kjw6ckatfn8jlq</sha1>
+    </revision>
+    <revision>
+      <id>3573043</id>
+      <parentid>2802168</parentid>
+      <timestamp>2004-03-17T08:38:35Z</timestamp>
+      <contributor>
+        <username>Dmmaus</username>
+        <id>48535</id>
+      </contributor>
+      <comment>Added physics definition &amp; example</comment>
+      <origin>3573043</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="1281" sha1="6g4ot4qqw92cqbopkjsdwpehxb60k79" xml:space="preserve">In [[chemistry]], the '''empirical formula''' of a chemical is a simple expression of the relative number of each type of atom ([[element]]) in it. An empirical formula makes no reference to [[isomer|isomerism]], structure, or absolute number of atoms.  The term empirical refers to the process of [[elemental analysis]], an [[analytical_chemistry | analytical]] technique used to determine the relative percent composition of a pure chemical substance by element.
+
+For example, [[hexane]] could have a [[chemical formula]] of CH&lt;sub&gt;3&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;3&lt;/sub&gt;, implying that it has a straight chain structure, 6 carbon atoms, and 14 hydrogen atoms. However the empirical formula for the same molecule would be C&lt;sub&gt;3&lt;/sub&gt;H&lt;sub&gt;7&lt;/sub&gt;.
+
+----
+
+In [[physics]], an '''empirical formula''' is a mathematical [[equation]] that predicts observed results, but has no known theoretical basis to explain why it works.
+
+An example was the [[Rydberg formula]] to predict the [[wavelength]]s of [[hydrogen]] [[spectral line]]s. Proposed in [[1888]], it perfectly predicted the wavelengths of the [[Lyman series]], but until [[Niels Bohr]] produced his [[Bohr model]] of the atom in [[1913]], nobody knew ''why'' the formula worked.</text>
+      <sha1>6g4ot4qqw92cqbopkjsdwpehxb60k79</sha1>
+    </revision>
+    <revision>
+      <id>3609073</id>
+      <parentid>3573043</parentid>
+      <timestamp>2004-05-14T05:32:58Z</timestamp>
+      <contributor>
+        <username>Vanished user 1234567890</username>
+        <id>59159</id>
+      </contributor>
+      <minor />
+      <comment>-&quot;_&quot; in link; clarify; style; links; disambig [[element]]</comment>
+      <origin>3609073</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="1299" sha1="lsw15lr4n068e5nmnbp3za82319idw1" xml:space="preserve">In [[chemistry]], the '''empirical formula''' of a chemical is a simple expression of the relative number of each type of [[atom]] (called a [[chemical element]]) in it. An empirical formula makes no reference to [[isomer]]ism, structure, or absolute number of atoms.  The term '''empirical''' refers to the process of [[elemental analysis]], a technique of [[analytical chemistry]] used to determine the relative percent composition of a pure chemical substance by element.
+
+For example, [[hexane]] could have a [[chemical formula]] of CH&lt;sub&gt;3&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;3&lt;/sub&gt;, implying that it has a straight chain structure, 6 [[carbon]] atoms, and 14 [[hydrogen]] atoms. However the empirical formula for the same molecule would be C&lt;sub&gt;3&lt;/sub&gt;H&lt;sub&gt;7&lt;/sub&gt;.
+
+----
+
+In [[physics]], an '''empirical formula''' is a mathematical [[equation]] that predicts observed results, but has no known theoretical basis to explain why it works.
+
+An example was the [[Rydberg formula]] to predict the [[wavelength]]s of [[hydrogen]] [[spectral line]]s. Proposed in [[1888]], it perfectly predicted the wavelengths of the [[Lyman series]], but until [[Niels Bohr]] produced his [[Bohr model]] of the atom in [[1913]], nobody knew ''why'' the formula worked.</text>
+      <sha1>lsw15lr4n068e5nmnbp3za82319idw1</sha1>
+    </revision>
+    <revision>
+      <id>3789220</id>
+      <parentid>3609073</parentid>
+      <timestamp>2004-05-16T22:01:41Z</timestamp>
+      <contributor>
+        <username>Bensaccount</username>
+        <id>45076</id>
+      </contributor>
+      <origin>3789220</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="1454" sha1="ra5vy1krbew3ni3zky6zyl4yuh9fqpq" xml:space="preserve">In [[chemistry]], the '''empirical formula''' of a chemical is a simple expression of the relative number of each type of [[atom]] (called a [[chemical element]]) in it. An empirical formula makes no reference to [[isomer]]ism, structure, or absolute number of atoms.  The term '''empirical''' refers to the process of [[elemental analysis]], a technique of [[analytical chemistry]] used to determine the relative percent composition of a pure chemical substance by element.
+
+In contrast, the [[molecular formula]] identifies the absolute number of atoms of such element to be found in each discrete molecule of that compound.
+
+For example, [[hexane]] could have a [[molecular formula]] of CH&lt;sub&gt;3&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;3&lt;/sub&gt;, implying that it has a straight chain structure, 6 [[carbon]] atoms, and 14 [[hydrogen]] atoms. However the empirical formula for the same molecule would be C&lt;sub&gt;3&lt;/sub&gt;H&lt;sub&gt;7&lt;/sub&gt;.
+
+----
+
+In [[physics]], an '''empirical formula''' is a mathematical [[equation]] that predicts observed results, but has no known theoretical basis to explain why it works.
+
+An example was the [[Rydberg formula]] to predict the [[wavelength]]s of [[hydrogen]] [[spectral line]]s. Proposed in [[1888]], it perfectly predicted the wavelengths of the [[Lyman series]], but until [[Niels Bohr]] produced his [[Bohr model]] of the atom in [[1913]], nobody knew ''why'' the formula worked.</text>
+      <sha1>ra5vy1krbew3ni3zky6zyl4yuh9fqpq</sha1>
+    </revision>
+    <revision>
+      <id>3967729</id>
+      <parentid>3789220</parentid>
+      <timestamp>2004-05-30T21:09:10Z</timestamp>
+      <contributor>
+        <username>Gentgeen</username>
+        <id>25065</id>
+      </contributor>
+      <comment>[[Category:Chemistry]]</comment>
+      <origin>3967729</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="1468" sha1="e9uu27o5dwncjs9w9lu8ac0jy22ablo" xml:space="preserve">In [[chemistry]], the '''empirical formula''' of a chemical is a simple expression of the relative number of each type of [[atom]] (called a [[chemical element]]) in it. An empirical formula makes no reference to [[isomer]]ism, structure, or absolute number of atoms.  The term '''empirical''' refers to the process of [[elemental analysis]], a technique of [[analytical chemistry]] used to determine the relative percent composition of a pure chemical substance by element.
+
+In contrast, the [[molecular formula]] identifies the absolute number of atoms of such element to be found in each discrete molecule of that compound.
+
+For example, [[hexane]] could have a [[molecular formula]] of CH&lt;sub&gt;3&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;3&lt;/sub&gt;, implying that it has a straight chain structure, 6 [[carbon]] atoms, and 14 [[hydrogen]] atoms. However the empirical formula for the same molecule would be C&lt;sub&gt;3&lt;/sub&gt;H&lt;sub&gt;7&lt;/sub&gt;.
+
+----
+
+In [[physics]], an '''empirical formula''' is a mathematical [[equation]] that predicts observed results, but has no known theoretical basis to explain why it works.
+
+An example was the [[Rydberg formula]] to predict the [[wavelength]]s of [[hydrogen]] [[spectral line]]s. Proposed in [[1888]], it perfectly predicted the wavelengths of the [[Lyman series]], but until [[Niels Bohr]] produced his [[Bohr model]] of the atom in [[1913]], nobody knew ''why'' the formula worked.
+
+[[Category:Chemistry]]</text>
+      <sha1>e9uu27o5dwncjs9w9lu8ac0jy22ablo</sha1>
+    </revision>
+    <revision>
+      <id>6653084</id>
+      <parentid>3967729</parentid>
+      <timestamp>2004-06-06T09:26:22Z</timestamp>
+      <contributor>
+        <username>The MoUsY spell-checker</username>
+        <id>60036</id>
+      </contributor>
+      <minor />
+      <origin>6653084</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="1469" sha1="lk8uaddtgqjtq4zf8v0nkic5jbiy5ji" xml:space="preserve">In [[chemistry]], the '''empirical formula''' of a chemical is a simple expression of the relative number of each type of [[atom]] (called a [[chemical element]]) in it. An empirical formula makes no reference to [[isomer]]ism, structure, or absolute number of atoms.  The term '''empirical''' refers to the process of [[elemental analysis]], a technique of [[analytical chemistry]] used to determine the relative percent composition of a pure chemical substance by element.
+
+In contrast, the [[molecular formula]] identifies the absolute number of atoms of such element to be found in each discrete molecule of that compound.
+
+For example, [[hexane]] could have a [[molecular formula]] of CH&lt;sub&gt;3&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;3&lt;/sub&gt;, implying that it has a straight chain structure, 6 [[carbon]] atoms, and 14 [[hydrogen]] atoms. However the empirical formula for the same molecule would be C&lt;sub&gt;6&lt;/sub&gt;H&lt;sub&gt;14&lt;/sub&gt;.
+
+----
+
+In [[physics]], an '''empirical formula''' is a mathematical [[equation]] that predicts observed results, but has no known theoretical basis to explain why it works.
+
+An example was the [[Rydberg formula]] to predict the [[wavelength]]s of [[hydrogen]] [[spectral line]]s. Proposed in [[1888]], it perfectly predicted the wavelengths of the [[Lyman series]], but until [[Niels Bohr]] produced his [[Bohr model]] of the atom in [[1913]], nobody knew ''why'' the formula worked.
+
+[[Category:Chemistry]]</text>
+      <sha1>lk8uaddtgqjtq4zf8v0nkic5jbiy5ji</sha1>
+    </revision>
+    <revision>
+      <id>6945618</id>
+      <parentid>6653084</parentid>
+      <timestamp>2004-10-17T16:57:41Z</timestamp>
+      <contributor>
+        <username>Srbauer</username>
+        <id>90779</id>
+      </contributor>
+      <minor />
+      <comment>de:</comment>
+      <origin>6945618</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="1495" sha1="pvumcvov8eu043mw67g9de9m4ul93bt" xml:space="preserve">In [[chemistry]], the '''empirical formula''' of a chemical is a simple expression of the relative number of each type of [[atom]] (called a [[chemical element]]) in it. An empirical formula makes no reference to [[isomer]]ism, structure, or absolute number of atoms.  The term '''empirical''' refers to the process of [[elemental analysis]], a technique of [[analytical chemistry]] used to determine the relative percent composition of a pure chemical substance by element.
+
+In contrast, the [[molecular formula]] identifies the absolute number of atoms of such element to be found in each discrete molecule of that compound.
+
+For example, [[hexane]] could have a [[molecular formula]] of CH&lt;sub&gt;3&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;3&lt;/sub&gt;, implying that it has a straight chain structure, 6 [[carbon]] atoms, and 14 [[hydrogen]] atoms. However the empirical formula for the same molecule would be C&lt;sub&gt;6&lt;/sub&gt;H&lt;sub&gt;14&lt;/sub&gt;.
+
+----
+
+In [[physics]], an '''empirical formula''' is a mathematical [[equation]] that predicts observed results, but has no known theoretical basis to explain why it works.
+
+An example was the [[Rydberg formula]] to predict the [[wavelength]]s of [[hydrogen]] [[spectral line]]s. Proposed in [[1888]], it perfectly predicted the wavelengths of the [[Lyman series]], but until [[Niels Bohr]] produced his [[Bohr model]] of the atom in [[1913]], nobody knew ''why'' the formula worked.
+
+[[Category:Chemistry]]
+
+[[de:Empirische Formel]]</text>
+      <sha1>pvumcvov8eu043mw67g9de9m4ul93bt</sha1>
+    </revision>
+    <revision>
+      <id>8286658</id>
+      <parentid>6945618</parentid>
+      <timestamp>2004-10-29T01:01:17Z</timestamp>
+      <contributor>
+        <username>Vsmith</username>
+        <id>84417</id>
+      </contributor>
+      <comment>ionic &amp; macromolecule</comment>
+      <origin>8286658</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="1626" sha1="e7rfn40nzfj0pyuj6f6fl096ff8up1x" xml:space="preserve">In [[chemistry]], the '''empirical formula''' of a chemical is a simple expression of the relative number of each type of [[atom]] (called a [[chemical element]]) in it. An empirical formula makes no reference to [[isomer]]ism, structure, or absolute number of atoms. Empirical formulas are the standard for ionic compounds, such as CaCl&lt;sub&gt;2&lt;/sub&gt;, and for macromolecules, such as SiO&lt;sub&gt;2&lt;/sub&gt;. The term '''empirical''' refers to the process of [[elemental analysis]], a technique of [[analytical chemistry]] used to determine the relative percent composition of a pure chemical substance by element.
+
+In contrast, the [[molecular formula]] identifies the absolute number of atoms of such element to be found in each discrete molecule of that compound.
+
+For example, [[hexane]] could have a [[molecular formula]] of CH&lt;sub&gt;3&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;3&lt;/sub&gt;, implying that it has a straight chain structure, 6 [[carbon]] atoms, and 14 [[hydrogen]] atoms. However the empirical formula for the same molecule would be C&lt;sub&gt;6&lt;/sub&gt;H&lt;sub&gt;14&lt;/sub&gt;.
+
+----
+
+In [[physics]], an '''empirical formula''' is a mathematical [[equation]] that predicts observed results, but has no known theoretical basis to explain why it works.
+
+An example was the [[Rydberg formula]] to predict the [[wavelength]]s of [[hydrogen]] [[spectral line]]s. Proposed in [[1888]], it perfectly predicted the wavelengths of the [[Lyman series]], but until [[Niels Bohr]] produced his [[Bohr model]] of the atom in [[1913]], nobody knew ''why'' the formula worked.
+
+[[Category:Chemistry]]
+
+[[de:Empirische Formel]]</text>
+      <sha1>e7rfn40nzfj0pyuj6f6fl096ff8up1x</sha1>
+    </revision>
+    <revision>
+      <id>8503203</id>
+      <parentid>8286658</parentid>
+      <timestamp>2004-12-10T03:41:10Z</timestamp>
+      <contributor>
+        <username>Vsmith</username>
+        <id>84417</id>
+      </contributor>
+      <comment>fix error</comment>
+      <origin>8503203</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="1741" sha1="3qkxxqxvetn1w881kyhziycg8g0wxqc" xml:space="preserve">In [[chemistry]], the '''empirical formula''' of a chemical is a simple expression of the relative number of each type of [[atom]] (called a [[chemical element]]) in it. An empirical formula makes no reference to [[isomer]]ism, structure, or absolute number of atoms. Empirical formulas are the standard for ionic compounds, such as CaCl&lt;sub&gt;2&lt;/sub&gt;, and for macromolecules, such as SiO&lt;sub&gt;2&lt;/sub&gt;. The term '''empirical''' refers to the process of [[elemental analysis]], a technique of [[analytical chemistry]] used to determine the relative percent composition of a pure chemical substance by element.
+
+In contrast, the [[molecular formula]] identifies the absolute number of atoms of such element to be found in each discrete molecule of that compound.
+
+For example, [[hexane]] could have a structural [[molecular formula]] of CH&lt;sub&gt;3&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;3&lt;/sub&gt;, implying that it has a straight chain structure, 6 [[carbon]] atoms, and 14 [[hydrogen]] atoms. The hexane molecular formula is C&lt;sub&gt;6&lt;/sub&gt;H&lt;sub&gt;14&lt;/sub&gt;. And the empirical formula for the same molecule would be C&lt;sub&gt;3&lt;/sub&gt;H&lt;sub&gt;7&lt;/sub&gt; showing a C:H ratio of 3:7.
+
+----
+
+In [[physics]], an '''empirical formula''' is a mathematical [[equation]] that predicts observed results, but has no known theoretical basis to explain why it works.
+
+An example was the [[Rydberg formula]] to predict the [[wavelength]]s of [[hydrogen]] [[spectral line]]s. Proposed in [[1888]], it perfectly predicted the wavelengths of the [[Lyman series]], but until [[Niels Bohr]] produced his [[Bohr model]] of the atom in [[1913]], nobody knew ''why'' the formula worked.
+
+[[Category:Chemistry]]
+[[Category:Physics]]
+
+[[de:Empirische Formel]]</text>
+      <sha1>3qkxxqxvetn1w881kyhziycg8g0wxqc</sha1>
+    </revision>
+    <revision>
+      <id>8503235</id>
+      <parentid>8503203</parentid>
+      <timestamp>2004-12-16T23:53:56Z</timestamp>
+      <contributor>
+        <ip>4.229.147.134</ip>
+      </contributor>
+      <origin>8503235</origin>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="1701" sha1="0pfw7nbkr5wel4a0propw81n6ueld3p" xml:space="preserve">In [[chemistry]], the '''pootytang formula''' of a chemical is a simple expression of the relative number of cocks able to be held within the twat. An pootytang or pussy formula makes no reference to the number of STD's within. Empirical formulas are the standard for ionic compounds, such as CaCl&lt;sub&gt;2&lt;/sub&gt;, and for macromolecules, such as SiO&lt;sub&gt;2&lt;/sub&gt;. The term '''empirical''' refers to the process of [[elemental analysis]], a technique of [[analytical chemistry]] used to determine the relative percent composition of a pure chemical substance by element.
+
+In contrast, the [[molecular formula]] identifies the absolute number of atoms of such element to be found in each discrete molecule of that compound.
+
+For example, [[hexane]] could have a structural [[molecular formula]] of CH&lt;sub&gt;3&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;2&lt;/sub&gt;CH&lt;sub&gt;3&lt;/sub&gt;, implying that it has a straight chain structure, 6 [[carbon]] atoms, and 14 [[hydrogen]] atoms. The hexane molecular formula is C&lt;sub&gt;6&lt;/sub&gt;H&lt;sub&gt;14&lt;/sub&gt;. And the empirical formula for the same molecule would be C&lt;sub&gt;3&lt;/sub&gt;H&lt;sub&gt;7&lt;/sub&gt; showing a C:H ratio of 3:7.
+
+----

@@ -244,6 +244,8 @@ function makeMapper(options) {
 
       if (!value || value.status !== 'pending') return [];
 
+      console.log('[worker] fetching: ' + value.title);
+
       const working = Object.assign({},value,{status:'inflight',claimedAt:now,lastError:null});
       store.put(working, {gid:${JSON.stringify(options.crawlGid)}, key:key}, () => {});
 
@@ -262,6 +264,8 @@ function makeMapper(options) {
           rawArticle:{title: article.title, pageId: article.pageId, revisions: article.revisions}
         }), {gid:${JSON.stringify(options.crawlGid)}, key:key}, () => {});
 
+        console.log('[worker] done: ' + value.title + ' revs=' + (article.revisions || []).length + ' links=' + (article.links || []).length);
+
         let found = [];
 
         let links = article.links || [];
@@ -273,6 +277,7 @@ function makeMapper(options) {
         }
         return found;
       } catch (err) {
+        console.log('[worker] failed: ' + value.title + ' err=' + (err && err.message ? err.message : String(err)));
         const tries = Number(value.retries ||0) + 1;
         store.put(Object.assign({}, value, {status:tries < ${options.maxRetries} ? 'pending' : 'failed',
           retries:tries,
@@ -392,12 +397,14 @@ async function crawlLoop(dist,options) {
 
     if (!batch.length) break;
 
-    // just do small chunk each round so its easier to follow 
     console.log('[crawl] round '+ round + ': ' + batch.length+' pages');
+    let t0 = Date.now();
     await runRound(dist, options, batch);
+    let t1 = Date.now();
     let ingest = await ingestRound(dist, options, batch);
+    let t2 = Date.now();
     let after = summarize(await pageRecords(dist, options.crawlGid));
-    console.log('[crawl] round '+round+' stored='+ingest.stored+' failed='+ingest.failed+' skipped='+ingest.skipped+' pending='+after.pending+' totalStored='+after.stored);
+    console.log('[crawl] round '+round+' stored='+ingest.stored+' failed='+ingest.failed+' skipped='+ingest.skipped+' pending='+after.pending+' totalStored='+after.stored+' (fetch '+((t1-t0)/1000).toFixed(1)+'s, ingest '+((t2-t1)/1000).toFixed(1)+'s)');
 
     if (after.stored >= cap) break;
     if (options.roundDelayMs) {

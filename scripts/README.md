@@ -1,5 +1,5 @@
 node scripts/runCrawl.js \
-  --nodes-file scripts/nodes.txt \
+  --nodes-file nodes.txt \
   --seed "Alan Turing" \
   --article-cap 10 \
   --max-rounds 10 \

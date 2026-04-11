@@ -1,9 +1,20 @@
 #!/usr/bin/env node
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const distribution = require('../distribution');
 const {runDistributedCrawler} = require('../crawler/distributedCrawler');
+
+function getPrivateIp() {
+  const ifaces = os.networkInterfaces();
+  for (const name of Object.keys(ifaces)) {
+    for (const iface of ifaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) return iface.address;
+    }
+  }
+  return '127.0.0.1';
+}
 
 function arg(name, fallback) {
   const i = process.argv.indexOf(name);
@@ -36,10 +47,11 @@ function call(fn) {
 
 // --- CLI args ---
 
-const coordIp = arg('--ip', '127.0.0.1');
-const coordPort = Number(arg('--port', '8080'));
 const localWorkers = Number(arg('--local-workers', '0'));
-const nodesFile = arg('--nodes-file', 'nodes.txt');
+const nodesFile = arg('--nodes-file', null);
+const explicitIp = arg('--ip', null);
+const coordIp = explicitIp || (nodesFile ? getPrivateIp() : '127.0.0.1');
+const coordPort = Number(arg('--port', '8080'));
 const seeds = manyArgs('--seed');
 const articleCap = Number(arg('--article-cap', '100'));
 const maxRounds = Number(arg('--max-rounds', '10'));
@@ -80,11 +92,11 @@ function parseNodesFile(filePath) {
   });
 }
 
-async function spawnLocalWorkers(dist, count, basePort) {
+async function spawnLocalWorkers(dist, count, ip, basePort) {
   for (let i = 0; i < count; i++) {
     const port = basePort + 1 + i;
-    await call((cb) => dist.all.status.spawn({ip: '127.0.0.1', port}, cb));
-    console.log(`[launcher] spawned local worker on 127.0.0.1:${port}`);
+    await call((cb) => dist.all.status.spawn({ip, port}, cb));
+    console.log(`[launcher] spawned local worker on ${ip}:${port}`);
   }
 }
 
@@ -119,7 +131,7 @@ async function main() {
   console.log(`[launcher] coordinator on ${coordIp}:${coordPort}`);
 
   if (localWorkers > 0) {
-    await spawnLocalWorkers(dist, localWorkers, coordPort);
+    await spawnLocalWorkers(dist, localWorkers, coordIp, coordPort);
   } else if (nodesFile) {
     const nodes = parseNodesFile(nodesFile);
     if (!nodes.length) {

@@ -8,7 +8,7 @@ const PAGE_PREFIX = 'page:';
 const CRAWL_GID = 'crawl';
 const WIKI_GID = 'wiki';
 const DEFAULT_MAX_RETRIES = 2;
-const DEFAULT_STALE_AFTER_MINUTES = 30;
+const DEFAULT_STALE_AFTER_MINUTES = 5;
 const DEFAULT_ROUND_DELAY_MS = 0;
 const DEFAULT_LANGUAGE = 'en';
 const DEFAULT_PROJECT = 'wikipedia';
@@ -397,10 +397,12 @@ async function crawlLoop(dist,options) {
 
     if (!batch.length) break;
 
-    console.log('[crawl] round '+ round + ': ' + batch.length+' pages');
+    console.log('[crawl] round '+ round + ': ' + batch.length+' pages [' + batch.map((x) => x.value.title).join(', ') + ']');
     let t0 = Date.now();
+    console.log('[crawl] starting MapReduce fetch...');
     await runRound(dist, options, batch);
     let t1 = Date.now();
+    console.log('[crawl] MapReduce done (' + ((t1-t0)/1000).toFixed(1) + 's), ingesting...');
     let ingest = await ingestRound(dist, options, batch);
     let t2 = Date.now();
     let after = summarize(await pageRecords(dist, options.crawlGid));

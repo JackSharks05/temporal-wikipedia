@@ -37,9 +37,9 @@ function call(fn) {
 // --- CLI args ---
 
 const coordIp = arg('--ip', '127.0.0.1');
-const coordPort = Number(arg('--port', '9000'));
+const coordPort = Number(arg('--port', '8080'));
 const localWorkers = Number(arg('--local-workers', '0'));
-const nodesFile = arg('--nodes-file', null);
+const nodesFile = arg('--nodes-file', 'nodes.txt');
 const seeds = manyArgs('--seed');
 const articleCap = Number(arg('--article-cap', '100'));
 const maxRounds = Number(arg('--max-rounds', '10'));

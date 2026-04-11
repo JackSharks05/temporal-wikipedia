@@ -9,7 +9,7 @@ function arg(name, fallback) {
 }
 
 const ip = arg('--ip', '0.0.0.0');
-const port = Number(arg('--port', '9001'));
+const port = Number(arg('--port', '8080'));
 
 const dist = distribution({ip, port});
 

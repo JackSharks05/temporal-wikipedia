@@ -1,0 +1,7 @@
+# One ip:port per line. Workers must already be running via startWorker.js.
+# Lines starting with # are ignored.
+#
+# Example for 3 AWS EC2 instances:
+# 10.0.1.10:9001
+# 10.0.1.11:9001
+# 10.0.1.12:9001

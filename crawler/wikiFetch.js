@@ -42,18 +42,6 @@ const API_THROTTLE_MS = 500;
 const FALLBACK_BACKOFF = [5, 10, 20];
 let lastApiCallMs = 0;
 
-function parseRetryAfter(headers) {
-  let match = headers.match(/retry-after:\s*(\d+)/i);
-  return match ? parseInt(match[1], 10) : null;
-}
-
-function lastHttpStatus(headers) {
-  let matches = headers.match(/HTTP\/[\d.]+ (\d+)/g);
-  if (!matches || !matches.length) return 0;
-  let last = matches[matches.length - 1];
-  return parseInt(last.split(' ')[1], 10) || 0;
-}
-
 function api(params,options) {
   options = options || {};
 
@@ -76,7 +64,7 @@ function api(params,options) {
   let url = 'https://' + lang + '.' + project + '.org/w/api.php?' + new URLSearchParams(cleaned).toString();
   let curlArgs = ['--silent','--show-error','--location','--compressed',
     '--max-time',String(secs),'--user-agent',ua,
-    '-D','/dev/stderr',
+    '-w','\n%{http_code}',
     url];
 
   for (let attempt = 0; attempt < API_MAX_ATTEMPTS; attempt++) {
@@ -88,20 +76,20 @@ function api(params,options) {
     lastApiCallMs = Date.now();
 
     let res = spawnSync('curl', curlArgs, {encoding:'utf8', maxBuffer: 64 * 1024 * 1024});
-    let body = res.stdout || '';
-    let headers = res.stderr || '';
-    let status = lastHttpStatus(headers);
+    let output = (res.stdout || '').trimEnd();
+    let lastNl = output.lastIndexOf('\n');
+    let statusCode = parseInt(output.substring(lastNl + 1), 10) || 0;
+    let body = lastNl >= 0 ? output.substring(0, lastNl) : '';
 
-    if (status === 429) {
-      let retryAfter = parseRetryAfter(headers);
-      let wait = retryAfter || (FALLBACK_BACKOFF[attempt] || 20);
-      console.log('[wikiFetch] 429 rate-limited, Retry-After=' + wait + 's (attempt ' + (attempt + 1) + '/' + API_MAX_ATTEMPTS + ')');
+    if (statusCode === 429) {
+      let wait = FALLBACK_BACKOFF[attempt] || 20;
+      console.log('[wikiFetch] 429 rate-limited, waiting ' + wait + 's (attempt ' + (attempt + 1) + '/' + API_MAX_ATTEMPTS + ')');
       execFileSync('sleep', [String(wait)]);
       continue;
     }
 
-    if (res.status !== 0 && !body.trim()) {
-      let errMsg = headers.replace(/HTTP\/[^\r\n]+[\r\n]*/g, '').trim() || 'curl failed with exit code ' + res.status;
+    if ((res.status !== 0 && !body.trim()) || (statusCode >= 400 && !body.trim())) {
+      let errMsg = (res.stderr || '').trim() || 'curl failed with status ' + statusCode + ' exit code ' + res.status;
       if (attempt < API_MAX_ATTEMPTS - 1) {
         console.log('[wikiFetch] curl error, retrying in 5s: ' + errMsg.split('\n')[0]);
         execFileSync('sleep', ['5']);

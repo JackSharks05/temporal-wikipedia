@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 const distribution = require('../distribution');
-const {storeArticle} = require('../storage/wikiStore');
 const {normalizeDisplayTitle, getTitleKey, DEFAULT_TIMEOUT_MS, DEFAULT_HISTORY_LIMIT, DEFAULT_USER_AGENT} = require('./wikiFetch');
 
 const PAGE_PREFIX = 'page:';
@@ -42,7 +41,6 @@ const EMPTY_PAGE = {
   linkCount: 0,
   historyTruncated: false,
   lastError: null,
-  rawArticle: null,
 };
 
 function pageKeyForTitle(title) {
@@ -136,16 +134,6 @@ function write(store,gid,key,val) {
 }
 
 
-function persistArticle(gid,article, segmentSize) {
-  return new Promise((resolve,reject) => {
-    storeArticle(gid,article,(err,meta) => {
-      let fixed = normalizeError(err);
-      if (fixed) return reject(fixed);
-      resolve(meta);
-    },{segmentSize: segmentSize});
-  });
-}
-
 async function useGroup(dist,gid,group) {
   await call((cb) => dist.local.groups.put(gid, group, cb));
   await call((cb) => dist[gid].groups.put(gid, group, cb));
@@ -210,7 +198,7 @@ async function recoverInflight(dist,gid,staleAfterMs) {
     if (!Number.isFinite(when)) continue;
     if (now - when < staleAfterMs) continue;
 
-    await write(store,gid,item.key,Object.assign({},item.value,{status:'pending',claimedAt:null,rawArticle:null}));
+    await write(store,gid,item.key,Object.assign({},item.value,{status:'pending',claimedAt:null}));
     fixedCount++;
   }
 
@@ -234,7 +222,6 @@ function makeMapper(options) {
           linkCount:0,
           historyTruncated:false,
           lastError:null,
-          rawArticle:null,
           title:fetcher.normalizeDisplayTitle(title),
           depth:depth,
           discoveredFrom:from,
@@ -249,40 +236,37 @@ function makeMapper(options) {
       const working = Object.assign({},value,{status:'inflight',claimedAt:now,lastError:null});
       store.put(working, {gid:${JSON.stringify(options.crawlGid)}, key:key}, () => {});
 
-
       try {
-        const article = fetcher.fetchArticleBundle(value.title, ${JSON.stringify(options.fetchOptions)});
+        var result = fetcher.fetchAndStoreRevisions(value.title, ${JSON.stringify(options.wikiGid)}, ${JSON.stringify(options.fetchOptions)});
 
         store.put(makePage(value.title,value.depth,value.discoveredFrom,{
-          status:'inflight',
+          status:'stored',
           retries:value.retries,
           claimedAt:now,
-          pageId:article.pageId,
-          revisionCount:(article.revisions || []).length,
-          linkCount:(article.links || []).length,
-          historyTruncated:Boolean(article.truncated),
-          rawArticle:{title: article.title, pageId: article.pageId, revisions: article.revisions}
+          storedAt:now,
+          pageId:result.pageId,
+          revisionCount:result.revisionCount,
+          linkCount:(result.links || []).length,
+          historyTruncated:Boolean(result.truncated)
         }), {gid:${JSON.stringify(options.crawlGid)}, key:key}, () => {});
 
-        console.log('[worker] done: ' + value.title + ' revs=' + (article.revisions || []).length + ' links=' + (article.links || []).length);
+        console.log('[worker] done: ' + value.title + ' revs=' + result.revisionCount + ' segs=' + result.segmentCount + ' links=' + (result.links || []).length);
 
-        let found = [];
-
-        let links = article.links || [];
-        for (let i = 0; i < links.length; i++) {
-          let title = links[i];
-          let littleObj = {};
+        var found = [];
+        var links = result.links || [];
+        for (var i = 0; i < links.length; i++) {
+          var title = links[i];
+          var littleObj = {};
           littleObj[${JSON.stringify(PAGE_PREFIX)} +fetcher.getTitleKey(title)] = makePage(title, Number(value.depth || 0) + 1, value.title);
           found.push(littleObj);
         }
         return found;
       } catch (err) {
         console.log('[worker] failed: ' + value.title + ' err=' + (err && err.message ? err.message : String(err)));
-        const tries = Number(value.retries ||0) + 1;
+        var tries = Number(value.retries ||0) + 1;
         store.put(Object.assign({}, value, {status:tries < ${options.maxRetries} ? 'pending' : 'failed',
           retries:tries,
           claimedAt:null,
-          rawArticle:null,
           lastError:err && err.message ? err.message : String(err)
         }), {gid:${JSON.stringify(options.crawlGid)}, key:key}, () => {});
         return [];
@@ -329,7 +313,7 @@ async function runRound(dist,options,batch) {
   await call((cb) => dist[options.crawlGid].mr.exec({
     keys:batch.map((x) => x.key),
     map:makeMapper({
-      crawlGid:options.crawlGid, fetchPath:options.fetchPath,
+      crawlGid:options.crawlGid, wikiGid:options.wikiGid, fetchPath:options.fetchPath,
       fetchOptions: {
         timeoutMs:options.timeoutMs, userAgent:options.userAgent,
         historyLimit:options.historyLimit, maxOutgoingLinks:options.maxOutgoingLinks,
@@ -338,39 +322,6 @@ async function runRound(dist,options,batch) {
     }),
     reduce: makeReducer(options.crawlGid, options.maxDepth)
   }, cb));
-}
-
-async function ingestRound(dist,options,batch) {
-  let store = dist[options.crawlGid].store;
-  let result = {stored: 0, skipped: 0, failed: 0};
-
-
-  for (let i = 0; i < batch.length; i++) {
-    let key = batch[i].key;
-    let record = await read(store,options.crawlGid,key,true);
-    if (!record || record.status !== 'inflight' || !record.rawArticle) {
-      result.skipped++;
-      continue;
-    }
-    try {
-      await persistArticle(options.wikiGid,record.rawArticle,options.segmentSize);
-
-      await write(store, options.crawlGid, key, Object.assign({},record, {
-        status:'stored',
-        storedAt:new Date().toISOString(),
-        rawArticle:null,
-        lastError:null,
-      }));
-
-      result.stored++;
-    } catch (err) {
-      let tries = Number(record.retries || 0) + 1;
-
-      await write(store, options.crawlGid, key, Object.assign({}, record, {status:tries < options.maxRetries ? 'pending' : 'failed', retries:tries, claimedAt:null, rawArticle:null, lastError:err.message}));
-      result.failed++;
-    }
-  }
-  return result;
 }
 
 async function crawlLoop(dist,options) {
@@ -399,14 +350,11 @@ async function crawlLoop(dist,options) {
 
     console.log('[crawl] round '+ round + ': ' + batch.length+' pages [' + batch.map((x) => x.value.title).join(', ') + ']');
     let t0 = Date.now();
-    console.log('[crawl] starting MapReduce fetch...');
+    console.log('[crawl] starting MapReduce fetch+store...');
     await runRound(dist, options, batch);
     let t1 = Date.now();
-    console.log('[crawl] MapReduce done (' + ((t1-t0)/1000).toFixed(1) + 's), ingesting...');
-    let ingest = await ingestRound(dist, options, batch);
-    let t2 = Date.now();
     let after = summarize(await pageRecords(dist, options.crawlGid));
-    console.log('[crawl] round '+round+' stored='+ingest.stored+' failed='+ingest.failed+' skipped='+ingest.skipped+' pending='+after.pending+' totalStored='+after.stored+' (fetch '+((t1-t0)/1000).toFixed(1)+'s, ingest '+((t2-t1)/1000).toFixed(1)+'s)');
+    console.log('[crawl] round '+round+' pending='+after.pending+' totalStored='+after.stored+' ('+((t1-t0)/1000).toFixed(1)+'s)');
 
     if (after.stored >= cap) break;
     if (options.roundDelayMs) {

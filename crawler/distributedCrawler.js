@@ -70,7 +70,7 @@ function setup(options) {
     crawlGid:SETTINGS.crawlGid,
     wikiGid:SETTINGS.wikiGid,
     seeds:(options.seeds || [SETTINGS.seed]).map(normalizeDisplayTitle),
-    batchSize:SETTINGS.batchSize,
+    batchSize:options.batchSize === undefined ? SETTINGS.batchSize : options.batchSize,
     maxRounds:options.maxRounds === undefined ? SETTINGS.maxRounds : options.maxRounds,
     maxPages:SETTINGS.maxPages,
     articleCap:options.articleCap === undefined ? SETTINGS.maxPages : options.articleCap,
@@ -81,7 +81,7 @@ function setup(options) {
     segmentSize:SETTINGS.segmentSize,
     timeoutMs:SETTINGS.timeoutMs,
     staleAfterMinutes:SETTINGS.staleAfterMinutes,
-    roundDelayMs:SETTINGS.roundDelayMs,
+    roundDelayMs:options.roundDelayMs === undefined ? SETTINGS.roundDelayMs : options.roundDelayMs,
     language:SETTINGS.language,
     project:SETTINGS.project,
     userAgent:SETTINGS.userAgent,
@@ -178,8 +178,12 @@ async function seedTitles(dist,gid,titles) {
     let key = pageKeyForTitle(title);
     let already = await read(store,gid,key,true);
     if (already) continue;
-    await write(store,gid,key,pageRecord(title));
-    made++;
+    try {
+      await write(store,gid,key,pageRecord(title));
+      made++;
+    } catch (err) {
+      // key may already exist from a previous run
+    }
   }
   return made;
 }

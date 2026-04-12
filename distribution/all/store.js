@@ -86,10 +86,7 @@ function store(config) {
             sent++;
             if (sent == Object.keys(group).length) {
               const unique = [...new Set(keys)];
-              if (unique.length !== keys.length) {
-                return callback(Error('duplicate keys found'));
-              }
-              return callback(errors, keys);
+              return callback(errors, unique);
             }
           });
         }

@@ -37,6 +37,14 @@ function shouldFollowArticleTitle(title) {
   return true;
 }
 
+const API_MAX_ATTEMPTS = 4;
+
+function is429(err) {
+  let msg = (err && err.message) || '';
+  let stderr = (err && err.stderr) || '';
+  return msg.includes('returned error: 429') || stderr.includes('returned error: 429');
+}
+
 function api(params,options) {
   options = options || {};
 
@@ -57,14 +65,28 @@ function api(params,options) {
   let lang = options.language || 'en';
   let project = options.project || 'wikipedia';
   let url = 'https://' + lang + '.' + project + '.org/w/api.php?' + new URLSearchParams(cleaned).toString();
-  let txt = execFileSync('curl', ['--fail','--silent','--show-error','--location','--compressed','--max-time',String(secs),'--user-agent',ua,url],{encoding:'utf8',maxBuffer: 64 * 1024 * 1024});
-  let parsed = JSON.parse(txt);
+  let curlArgs = ['--fail','--silent','--show-error','--location','--compressed','--max-time',String(secs),'--user-agent',ua,url];
 
-  if (parsed && parsed.error) {
-    throw new Error(parsed.error.info || parsed.error.code || 'Wikipedia API error');
+  for (let attempt = 0; attempt < API_MAX_ATTEMPTS; attempt++) {
+    try {
+      let txt = execFileSync('curl', curlArgs, {encoding:'utf8', maxBuffer: 64 * 1024 * 1024});
+      let parsed = JSON.parse(txt);
+
+      if (parsed && parsed.error) {
+        throw new Error(parsed.error.info || parsed.error.code || 'Wikipedia API error');
+      }
+
+      return parsed;
+    } catch (err) {
+      if (attempt < API_MAX_ATTEMPTS - 1 && is429(err)) {
+        let delaySecs = Math.pow(2, attempt + 1);
+        console.log('[wikiFetch] 429 rate-limited, retrying in ' + delaySecs + 's (attempt ' + (attempt + 1) + '/' + API_MAX_ATTEMPTS + ')');
+        execFileSync('sleep', [String(delaySecs)]);
+        continue;
+      }
+      throw err;
+    }
   }
-
-  return parsed;
 }
 
 function fetchCurrentPageHtml(title,options) {

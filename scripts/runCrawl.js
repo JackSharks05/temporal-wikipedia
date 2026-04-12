@@ -56,6 +56,8 @@ const seeds = manyArgs('--seed');
 const articleCap = Number(arg('--article-cap', '100'));
 const maxRounds = Number(arg('--max-rounds', '10'));
 const historyLimit = Number(arg('--history-limit', '2000'));
+const batchSize = arg('--batch-size', null);
+const roundDelay = Number(arg('--round-delay', '2000'));
 
 if (!localWorkers && !nodesFile) {
   console.error('Multi-node crawler launcher');
@@ -75,6 +77,8 @@ if (!localWorkers && !nodesFile) {
   console.error('  --article-cap N      max articles to store (default 100)');
   console.error('  --max-rounds N       max crawl rounds (default 10)');
   console.error('  --history-limit N    revision history limit (default 2000)');
+  console.error('  --batch-size N       articles per round (default 30)');
+  console.error('  --round-delay MS     pause between rounds in ms (default 2000)');
   process.exit(1);
 }
 
@@ -153,6 +157,8 @@ async function main() {
       articleCap,
       maxRounds,
       historyLimit,
+      ...(batchSize != null && {batchSize: Number(batchSize)}),
+      roundDelayMs: roundDelay,
     });
     console.log('[launcher] crawl complete:', JSON.stringify(result));
   } catch (err) {

@@ -1,4 +1,4 @@
-const {execFileSync} = require('node:child_process');
+const {execFileSync, spawnSync} = require('node:child_process');
 const {JSDOM} = require('jsdom');
 const {normalizeTitle, createSegment} = require('../storage/segmentArticle');
 
@@ -38,11 +38,20 @@ function shouldFollowArticleTitle(title) {
 }
 
 const API_MAX_ATTEMPTS = 4;
+const API_THROTTLE_MS = 500;
+const FALLBACK_BACKOFF = [5, 10, 20];
+let lastApiCallMs = 0;
 
-function is429(err) {
-  let msg = (err && err.message) || '';
-  let stderr = (err && err.stderr) || '';
-  return msg.includes('returned error: 429') || stderr.includes('returned error: 429');
+function parseRetryAfter(headers) {
+  let match = headers.match(/retry-after:\s*(\d+)/i);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+function lastHttpStatus(headers) {
+  let matches = headers.match(/HTTP\/[\d.]+ (\d+)/g);
+  if (!matches || !matches.length) return 0;
+  let last = matches[matches.length - 1];
+  return parseInt(last.split(' ')[1], 10) || 0;
 }
 
 function api(params,options) {
@@ -65,28 +74,51 @@ function api(params,options) {
   let lang = options.language || 'en';
   let project = options.project || 'wikipedia';
   let url = 'https://' + lang + '.' + project + '.org/w/api.php?' + new URLSearchParams(cleaned).toString();
-  let curlArgs = ['--fail','--silent','--show-error','--location','--compressed','--max-time',String(secs),'--user-agent',ua,url];
+  let curlArgs = ['--silent','--show-error','--location','--compressed',
+    '--max-time',String(secs),'--user-agent',ua,
+    '-D','/dev/stderr',
+    url];
 
   for (let attempt = 0; attempt < API_MAX_ATTEMPTS; attempt++) {
-    try {
-      let txt = execFileSync('curl', curlArgs, {encoding:'utf8', maxBuffer: 64 * 1024 * 1024});
-      let parsed = JSON.parse(txt);
+    let now = Date.now();
+    let gap = now - lastApiCallMs;
+    if (lastApiCallMs > 0 && gap < API_THROTTLE_MS) {
+      execFileSync('sleep', [String((API_THROTTLE_MS - gap) / 1000)]);
+    }
+    lastApiCallMs = Date.now();
 
-      if (parsed && parsed.error) {
-        throw new Error(parsed.error.info || parsed.error.code || 'Wikipedia API error');
-      }
+    let res = spawnSync('curl', curlArgs, {encoding:'utf8', maxBuffer: 64 * 1024 * 1024});
+    let body = res.stdout || '';
+    let headers = res.stderr || '';
+    let status = lastHttpStatus(headers);
 
-      return parsed;
-    } catch (err) {
-      if (attempt < API_MAX_ATTEMPTS - 1 && is429(err)) {
-        let delaySecs = Math.pow(2, attempt + 1);
-        console.log('[wikiFetch] 429 rate-limited, retrying in ' + delaySecs + 's (attempt ' + (attempt + 1) + '/' + API_MAX_ATTEMPTS + ')');
-        execFileSync('sleep', [String(delaySecs)]);
+    if (status === 429) {
+      let retryAfter = parseRetryAfter(headers);
+      let wait = retryAfter || (FALLBACK_BACKOFF[attempt] || 20);
+      console.log('[wikiFetch] 429 rate-limited, Retry-After=' + wait + 's (attempt ' + (attempt + 1) + '/' + API_MAX_ATTEMPTS + ')');
+      execFileSync('sleep', [String(wait)]);
+      continue;
+    }
+
+    if (res.status !== 0 && !body.trim()) {
+      let errMsg = headers.replace(/HTTP\/[^\r\n]+[\r\n]*/g, '').trim() || 'curl failed with exit code ' + res.status;
+      if (attempt < API_MAX_ATTEMPTS - 1) {
+        console.log('[wikiFetch] curl error, retrying in 5s: ' + errMsg.split('\n')[0]);
+        execFileSync('sleep', ['5']);
         continue;
       }
-      throw err;
+      throw new Error(errMsg);
     }
+
+    let parsed = JSON.parse(body);
+
+    if (parsed && parsed.error) {
+      throw new Error(parsed.error.info || parsed.error.code || 'Wikipedia API error');
+    }
+
+    return parsed;
   }
+  throw new Error('Wikipedia API: max retries exceeded for ' + url);
 }
 
 function fetchCurrentPageHtml(title,options) {

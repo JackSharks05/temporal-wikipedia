@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
-const {connectToCluster, shutdown, getArg} = require('../lib/clusterConnect');
+const {connectToCluster, shutdown, getArg, parseNodesFile} = require('../lib/clusterConnect');
+const os = require('os');
+const distribution = require('../distribution');
 
 const PAGE_PREFIX = 'page:';
 const crawlGid = 'crawl';
@@ -14,18 +16,58 @@ function call(fn) {
   });
 }
 
+function getPrivateIp() {
+  const ifaces = os.networkInterfaces();
+  for (const name of Object.keys(ifaces)) {
+    for (const iface of ifaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) return iface.address;
+    }
+  }
+  return '127.0.0.1';
+}
+
 (async () => {
   const nodesFile = getArg('--nodes-file', null);
   if (!nodesFile) {
-    console.error('Usage: node scripts/crawlStatus.js --nodes-file nodes.txt');
+    console.error('Usage: node scripts/crawlStatus.js --nodes-file nodes.txt [--coord ip:port]');
+    console.error('  --coord   coordinator ip:port (default: auto-detect local IP + :8080)');
     process.exit(1);
   }
 
-  let dist;
+  const coordArg = getArg('--coord', null);
+  const coordIp = coordArg ? coordArg.split(':')[0] : getPrivateIp();
+  const coordPort = coordArg ? Number(coordArg.split(':')[1]) : 8080;
+
+  const localPort = 7998;
+  const dist = distribution({ip: coordIp, port: localPort});
+
+  await new Promise((resolve, reject) => {
+    dist.node.start((server) => {
+      if (server instanceof Error) return reject(server);
+      resolve(server);
+    });
+  });
+
   try {
-    dist = await connectToCluster({nodesFile, gid: crawlGid, port: 7998});
+    const id = dist.util.id;
+    const nodes = parseNodesFile(nodesFile);
+    const group = {};
+
+    const coord = {ip: coordIp, port: coordPort};
+    group[id.getSID(coord)] = coord;
+
+    for (const node of nodes) {
+      group[id.getSID(node)] = node;
+    }
+
+    await new Promise((resolve, reject) => {
+      dist.local.groups.put(crawlGid, group, (err) => {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
   } catch (err) {
-    console.error('Failed to connect:', err.message);
+    console.error('Failed to set up group:', err.message);
     process.exit(1);
   }
 

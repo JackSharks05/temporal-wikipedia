@@ -1,22 +1,15 @@
 #!/usr/bin/env node
 
 const readline = require('readline');
-const distribution = require('../distribution');
+const {connectToCluster, shutdown, getArg} = require('../lib/clusterConnect');
 const {getDiffEntry} = require('./queryIndex');
 
-function getArg(name, fallback = null) {
-  const idx = process.argv.indexOf(name);
-  if (idx === -1 || idx + 1 >= process.argv.length) return fallback;
-  return process.argv[idx + 1];
-}
+const gid = getArg('--gid', 'wiki');
 
-const gid = getArg('--gid', 'all');
-const port = parseInt(getArg('--port', '9000'), 10);
-const ip = getArg('--ip', '127.0.0.1');
-const dist = distribution({ip, port});
+let _dist;
 
 function finish(code) {
-  dist.local.status.stop(() => process.exit(code));
+  shutdown(_dist).then(() => process.exit(code));
 }
 
 function printHelp() {
@@ -56,7 +49,7 @@ function handleRange(start, end, word, done) {
 
   (function next() {
     if (curYear > end) {
-      if (found === 0) console.log(`  No data for "${word}" in ${start}–${end}.`);
+      if (found === 0) console.log(`  No data for "${word}" in ${start}\u2013${end}.`);
       console.log();
       return done();
     }
@@ -111,11 +104,18 @@ function startRepl() {
   });
 }
 
-dist.node.start((server) => {
-  if (server instanceof Error) {
-    console.error(server);
-    return finish(1);
+(async () => {
+  try {
+    _dist = await connectToCluster({
+      nodesFile: getArg('--nodes-file', null),
+      gid,
+      port: parseInt(getArg('--port', '7999'), 10),
+      ip: getArg('--ip', null),
+    });
+  } catch (err) {
+    console.error('Failed to connect:', err.message);
+    process.exit(1);
   }
-  console.log(`Connected to ${ip}:${port}, group: ${gid}`);
+  console.log(`Connected, group: ${gid}`);
   startRepl();
-});
+})();

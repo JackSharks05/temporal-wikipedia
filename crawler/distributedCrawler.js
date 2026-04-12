@@ -15,7 +15,7 @@ const DEFAULT_FETCH_PATH = require.resolve('./wikiFetch');
 const SETTINGS = {crawlGid:CRAWL_GID,
   wikiGid:WIKI_GID,
   seed:'Distributed systems',
-  batchSize:30,
+  batchSize:300,
   maxRounds:10,
   maxPages:100,
   maxDepth:2,

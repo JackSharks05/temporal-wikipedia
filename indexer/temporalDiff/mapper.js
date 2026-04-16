@@ -107,7 +107,14 @@ function ingest(content, ts, state) {
 }
 
 function mapArticle(gid, key, meta) {
-  if (!meta || !meta.pageId) return [];
+  if (!meta) {
+    console.log(`[indexer] skipping key=${key}: meta is ${meta === null ? 'null' : typeof meta}`);
+    return [];
+  }
+  if (!meta.pageId) {
+    console.log(`[indexer] skipping key=${key}: meta missing pageId; keys=${Object.keys(meta).join(',')}`);
+    return [];
+  }
 
   const pageId = String(meta.pageId);
   const title = meta.title || '';
@@ -118,9 +125,11 @@ function mapArticle(gid, key, meta) {
 
   const firstSeg = loadSegment(storeDir, pageId, 0);
   if (!firstSeg || !firstSeg.base) {
-    console.log(`[indexer] skipping ${title} (no local segment 0 for pageId=${pageId})`);
+    console.log(`[indexer] skipping ${title} (no local segment 0 for pageId=${pageId}, storeDir=${storeDir})`);
     return [];
   }
+
+  console.log(`[indexer] start: ${title} (pageId=${pageId})`);
 
   const state = {
     prevEnd: null,
@@ -152,8 +161,6 @@ function mapArticle(gid, key, meta) {
     segCount++;
   }
 
-  console.log(`[indexer] mapping: ${title} (pageId=${pageId}, ${segCount} segments)`);
-
   if (state.prevEnd !== null && state.currLatest !== null) {
     tallyDiff(state.prevEnd, state.currLatest, state.currYear, state.title, state.agg);
   }
@@ -164,6 +171,8 @@ function mapArticle(gid, key, meta) {
     o[yw] = state.agg[yw];
     out.push(o);
   }
+
+  console.log(`[indexer] mapped: ${title} (pageId=${pageId}, ${segCount} segments, ${out.length} year:word entries)`);
   return out;
 }
 

@@ -197,7 +197,7 @@ if (require.main === module) {
       dist = await connectToCluster({
         nodesFile: getArg('--nodes-file', null),
         gid,
-        port: parseInt(getArg('--port', '7999'), 10),
+        port: parseInt(getArg('--port', '8081'), 10),
         ip: getArg('--ip', null),
         propagate: true,
       });

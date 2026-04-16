@@ -114,12 +114,21 @@ function makeIndexMapper() {
 
       if (revs.length < 2) return [];
 
+      var snapshots = {};
+      for (var r = 0; r < revs.length; r++) {
+        var y = new Date(revs[r].ts).getUTCFullYear();
+        snapshots[y] = revs[r].content;
+      }
+      var years = Object.keys(snapshots).map(Number).sort(function(a,b){return a-b;});
+
+      if (years.length < 2) return [];
+
       var agg = {};
       var title = segment.title || '';
 
-      for (var r = 0; r < revs.length - 1; r++) {
-        var year = new Date(revs[r + 1].ts).getUTCFullYear();
-        var changes = Diff.diffWords(revs[r].content, revs[r + 1].content, {ignoreCase: true});
+      for (var i = 0; i < years.length - 1; i++) {
+        var year = years[i + 1];
+        var changes = Diff.diffWords(snapshots[years[i]], snapshots[years[i+1]], {ignoreCase: true});
 
         for (var c = 0; c < changes.length; c++) {
           var ch = changes[c];

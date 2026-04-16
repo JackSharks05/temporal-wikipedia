@@ -71,15 +71,21 @@ function normalizeStoreError(error) {
 }
 
 /**
- * Mapper function for the MR framework.
+ * Mapper factory for the MR framework.
+ *
+ * Called once per article (key='article-meta:<pageId>', value=metaRecord).
+ * The mapper synchronously loads all article-segment:<pageId>:* from its
+ * own local disk (guaranteed co-located by placement key article-home:<pageId>)
+ * and streams through revisions with a 2-snapshot sliding window over years.
  */
-function makeIndexMapper() {
-  return new Function(`
-    return function mapSegment(key, segment) {
-      if (!segment || !segment.base) return [];
+function makeIndexMapper(gid) {
+  const src = `
+    return function mapArticle(key, meta) {
+      if (!meta || !meta.pageId) return [];
 
-      console.log('[indexer] mapping: ' + (segment.title || key) + ' seg=' + (segment.segmentId || 0) + ' deltas=' + (segment.deltas || []).length);
-
+      var fs = require('fs');
+      var path = require('path');
+      var crypto = require('crypto');
       var Diff = process.mainModule.require('diff');
 
       var STOP = {'the':1,'is':1,'a':1,'an':1,'and':1,'or':1,'but':1,'in':1,
@@ -103,39 +109,43 @@ function makeIndexMapper() {
           .split(/\\s+/).filter(function(w) { return w && !STOP[w] && w.length > 2; });
       }
 
-      var revs = [{ ts: segment.base.timestamp, content: segment.base.content || '' }];
-      var content = segment.base.content || '';
-      var deltas = segment.deltas || [];
-      for (var d = 0; d < deltas.length; d++) {
-        var patched = Diff.applyPatch(content, deltas[d].patch);
-        if (patched !== false) content = patched;
-        revs.push({ ts: deltas[d].timestamp, content: content });
+      var GID = __GID__;
+      var pageId = String(meta.pageId);
+      var title = meta.title || '';
+
+      var nid = globalThis.distribution.util.id.getNID(
+          globalThis.distribution.node.config);
+      var storeDir = path.join(process.cwd(), 'store', nid, GID);
+
+      function loadSegment(sid) {
+        var segKey = 'article-segment:' + pageId + ':' + sid;
+        var fn = crypto.createHash('sha256').update(segKey).digest('hex');
+        var fp = path.join(storeDir, fn);
+        if (!fs.existsSync(fp)) return null;
+        try {
+          var raw = fs.readFileSync(fp, 'utf8');
+          var parsed = globalThis.distribution.util.deserialize(raw);
+          return (parsed && parsed.value) ? parsed.value : null;
+        } catch (e) {
+          return null;
+        }
       }
 
-      if (revs.length < 2) return [];
+      var prevEnd = null;
+      var currYear = null;
+      var currLatest = null;
+      var agg = Object.create(null);
 
-      var snapshots = {};
-      for (var r = 0; r < revs.length; r++) {
-        var y = new Date(revs[r].ts).getUTCFullYear();
-        snapshots[y] = revs[r].content;
-      }
-      var years = Object.keys(snapshots).map(Number).sort(function(a,b){return a-b;});
+      function year(ts) { return new Date(ts).getUTCFullYear(); }
 
-      if (years.length < 2) return [];
-
-      var agg = {};
-      var title = segment.title || '';
-
-      for (var i = 0; i < years.length - 1; i++) {
-        var year = years[i + 1];
-        var changes = Diff.diffWords(snapshots[years[i]], snapshots[years[i+1]], {ignoreCase: true});
-
+      function tallyDiff(oldText, newText, yr) {
+        var changes = Diff.diffWords(oldText, newText, {ignoreCase: true});
         for (var c = 0; c < changes.length; c++) {
           var ch = changes[c];
           if (!ch.added && !ch.removed) continue;
-          var words = tok(ch.value);
-          for (var w = 0; w < words.length; w++) {
-            var yw = year + ':' + words[w];
+          var ws = tok(ch.value);
+          for (var w = 0; w < ws.length; w++) {
+            var yw = yr + ':' + ws[w];
             if (!agg[yw]) agg[yw] = { article: title, added: 0, removed: 0 };
             if (ch.added)   agg[yw].added   += 1;
             if (ch.removed) agg[yw].removed += 1;
@@ -143,16 +153,65 @@ function makeIndexMapper() {
         }
       }
 
+      function ingest(content, ts) {
+        var y = year(ts);
+        if (currYear === null) { currYear = y; currLatest = content; return; }
+        if (y === currYear)    { currLatest = content; return; }
+        if (prevEnd !== null) tallyDiff(prevEnd, currLatest, currYear);
+        prevEnd = currLatest;
+        currYear = y;
+        currLatest = content;
+      }
+
+      var firstSeg = loadSegment(0);
+      if (!firstSeg || !firstSeg.base) {
+        console.log('[indexer] skipping ' + title + ' (no local segment 0 for pageId=' + pageId + ')');
+        return [];
+      }
+
+      var content = firstSeg.base.content || '';
+      ingest(content, firstSeg.base.timestamp);
+      var deltas = firstSeg.deltas || [];
+      for (var d = 0; d < deltas.length; d++) {
+        var patched = Diff.applyPatch(content, deltas[d].patch);
+        if (patched !== false) content = patched;
+        ingest(content, deltas[d].timestamp);
+      }
+      var segCount = 1;
+      firstSeg = null;
+      deltas = null;
+
+      for (var sid = 1; sid < 100000; sid++) {
+        var seg = loadSegment(sid);
+        if (!seg) break;
+        var segDeltas = seg.deltas || [];
+        for (var dd = 0; dd < segDeltas.length; dd++) {
+          var p2 = Diff.applyPatch(content, segDeltas[dd].patch);
+          if (p2 !== false) content = p2;
+          ingest(content, segDeltas[dd].timestamp);
+        }
+        segCount++;
+        seg = null;
+        segDeltas = null;
+      }
+
+      console.log('[indexer] mapping: ' + title + ' (pageId=' + pageId + ', ' + segCount + ' segments)');
+
+      if (prevEnd !== null && currLatest !== null) {
+        tallyDiff(prevEnd, currLatest, currYear);
+      }
+
       var out = [];
-      var keys = Object.keys(agg);
-      for (var k = 0; k < keys.length; k++) {
-        var entry = {};
-        entry[keys[k]] = agg[keys[k]];
-        out.push(entry);
+      var ks = Object.keys(agg);
+      for (var i = 0; i < ks.length; i++) {
+        var o = {};
+        o[ks[i]] = agg[ks[i]];
+        out.push(o);
       }
       return out;
     };
-  `)();
+  `.replace('__GID__', JSON.stringify(gid));
+  return new Function(src)();
 }
 
 /**
@@ -229,9 +288,9 @@ function healthCheck(gid, callback) {
 }
 
 /**
- * List all article-segment keys in the store.
+ * List all article-meta keys in the store (one per article).
  */
-function listSegmentKeys(gid, callback) {
+function listArticleKeys(gid, callback) {
   const service = globalThis.distribution && globalThis.distribution[gid];
   if (!service || !service.store) {
     return callback(new Error(`group not found: ${gid}`));
@@ -240,19 +299,21 @@ function listSegmentKeys(gid, callback) {
   service.store.get({key: null, gid}, (err, allKeys) => {
     if (err instanceof Error) return callback(err);
 
-    const prefix = 'article-segment:';
-    const segKeys = (allKeys || [])
+    const prefix = 'article-meta:';
+    const articleKeys = (allKeys || [])
         .filter((k) => typeof k === 'string' && k.startsWith(prefix));
 
-    callback(null, segKeys);
+    callback(null, articleKeys);
   });
 }
 
 /**
  * Build the temporal diff index using distributed MapReduce.
  *
- * Map:    Each segment -> diff consecutive revisions -> emit year:word entries
- * Reduce: Aggregate year:word entries across all segments/articles
+ * Map:    Each article (via article-meta key) -> load all its segments locally
+ *         -> stream revisions with year-boundary sliding window
+ *         -> emit year:word entries
+ * Reduce: Aggregate year:word entries across all articles
  * Post:   Write aggregated diff:year:word records to the store
  */
 function buildDistributedIndex(gid, callback) {
@@ -263,19 +324,19 @@ function buildDistributedIndex(gid, callback) {
     return callback(new Error(`group not found or missing mr: ${gid}`));
   }
 
-  console.log('[indexer] listing segment keys...');
+  console.log('[indexer] listing article keys...');
 
-  listSegmentKeys(gid, (listErr, segKeys) => {
+  listArticleKeys(gid, (listErr, articleKeys) => {
     if (listErr) return callback(listErr);
-    if (!segKeys || segKeys.length === 0) {
-      return callback(new Error('no segments found in store'));
+    if (!articleKeys || articleKeys.length === 0) {
+      return callback(new Error('no articles found in store'));
     }
 
-    console.log(`[indexer] found ${segKeys.length} segments, starting MapReduce...`);
+    console.log(`[indexer] found ${articleKeys.length} articles, starting MapReduce...`);
 
     service.mr.exec({
-      keyPrefix: 'article-segment:',
-      map: makeIndexMapper(),
+      keyPrefix: 'article-meta:',
+      map: makeIndexMapper(gid),
       reduce: makeIndexReducer(),
     }, (mrErr, results) => {
       if (mrErr) return callback(normalizeStoreError(mrErr));

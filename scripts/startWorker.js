@@ -3,6 +3,11 @@
 const os = require('os');
 const distribution = require('../distribution');
 
+// Expose this module's require on the global scope so MR mapper/reducer
+// functions (created via `new Function(...)` and therefore lacking module
+// context) can still load Node modules and project files on workers.
+globalThis.__workerRequire = require;
+
 function arg(name, fallback) {
   const i = process.argv.indexOf(name);
   if (i === -1 || i + 1 >= process.argv.length) return fallback;

@@ -27,19 +27,23 @@ function normalizeStoreError(error) {
 /**
  * MR map shim — a tiny function that delegates to ./mapper.js on each worker.
  *
- * IMPORTANT: we build the shim with `new Function(argNames..., body)` so the
- * produced function has NO outer closure. util.serialize stringifies via
- * `String(fn)` which drops closures — any free variable referenced from an
- * outer scope would be undefined on the worker. So we inline `gid` as a
- * string literal directly into the body. We also wrap the require+call in a
- * try/catch that logs on the worker, so future silent failures are visible.
+ * Functions built with `new Function(...)` run in the GLOBAL scope on the
+ * worker, which means Node's module-local `require` is NOT available. To
+ * load modules, we use `globalThis.__workerRequire` — a bound copy of the
+ * worker process's `require` exposed by scripts/startWorker.js. We also
+ * inline `gid` as a string literal because closures are lost across
+ * util.serialize's String(fn) round-trip.
  */
 function makeIndexMapper(gid) {
   const gidLit = JSON.stringify(gid);
   return new Function('key', 'value', `
     try {
-      var p = require('path');
-      var impl = require(p.join(process.cwd(), 'indexer', 'temporalDiff', 'mapper.js'));
+      var req = globalThis.__workerRequire;
+      if (typeof req !== 'function') {
+        throw new Error('worker missing globalThis.__workerRequire; restart worker with latest startWorker.js');
+      }
+      var p = req('path');
+      var impl = req(p.join(process.cwd(), 'indexer', 'temporalDiff', 'mapper.js'));
       return impl.mapArticle(${gidLit}, key, value);
     } catch (err) {
       console.log('[indexer:shim] map error for key=' + key + ': ' + (err && err.message));
@@ -50,13 +54,16 @@ function makeIndexMapper(gid) {
 
 /**
  * MR reduce shim — delegates to ./reducer.js on each worker.
- * No closure variables; same try/catch pattern for visibility.
  */
 function makeIndexReducer() {
   return new Function('key', 'values', `
     try {
-      var p = require('path');
-      var impl = require(p.join(process.cwd(), 'indexer', 'temporalDiff', 'reducer.js'));
+      var req = globalThis.__workerRequire;
+      if (typeof req !== 'function') {
+        throw new Error('worker missing globalThis.__workerRequire; restart worker with latest startWorker.js');
+      }
+      var p = req('path');
+      var impl = req(p.join(process.cwd(), 'indexer', 'temporalDiff', 'reducer.js'));
       return impl.reduceYearWord(key, values);
     } catch (err) {
       console.log('[indexer:shim] reduce error for key=' + key + ': ' + (err && err.message));

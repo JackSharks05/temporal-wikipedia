@@ -175,6 +175,51 @@ function makeIndexReducer() {
 }
 
 /**
+ * Ping every node in the group via a cheap RPC to detect dead workers.
+ * Prevents MR from hanging forever on missing notify callbacks.
+ */
+function healthCheck(gid, callback) {
+  const dist = globalThis.distribution;
+  if (!dist || !dist.local || !dist.local.groups || !dist.local.comm) {
+    return callback(new Error('healthCheck: distribution not available'));
+  }
+
+  dist.local.groups.get(gid, (err, group) => {
+    if (err) return callback(err);
+    const nodes = Object.values(group || {});
+    if (!nodes.length) {
+      return callback(new Error(`healthCheck: group "${gid}" is empty`));
+    }
+
+    console.log(`[indexer] health-checking ${nodes.length} nodes...`);
+
+    let pending = nodes.length;
+    const dead = [];
+
+    for (const node of nodes) {
+      dist.local.comm.send(
+          ['all'],
+          {node, service: 'groups', method: 'get'},
+          (sendErr) => {
+            if (sendErr) dead.push(`${node.ip}:${node.port}`);
+            pending--;
+            if (pending === 0) {
+              if (dead.length > 0) {
+                return callback(new Error(
+                    `${dead.length}/${nodes.length} workers unreachable: ${dead.join(', ')}\n` +
+                    `Restart them with: bash scripts/startAllWorkers.sh`,
+                ));
+              }
+              console.log(`[indexer] all ${nodes.length} nodes reachable`);
+              callback(null);
+            }
+          },
+      );
+    }
+  });
+}
+
+/**
  * List all article-segment keys in the store.
  */
 function listSegmentKeys(gid, callback) {
@@ -268,6 +313,7 @@ module.exports = {
   buildDistributedIndex,
   tokenize,
   generateYearWordIndex,
+  healthCheck,
 };
 
 
@@ -293,15 +339,23 @@ if (require.main === module) {
 
     console.log(`[indexer] group: ${gid}`);
 
-    buildDistributedIndex(gid, async (err, count) => {
-      if (err) {
-        console.error('[indexer] Error:', err.message);
+    healthCheck(gid, async (healthErr) => {
+      if (healthErr) {
+        console.error('[indexer] pre-flight failed:', healthErr.message);
         await shutdown(dist);
         process.exit(1);
       }
-      console.log(`[indexer] done. ${count} year:word index entries built.`);
-      await shutdown(dist);
-      process.exit(0);
+
+      buildDistributedIndex(gid, async (err, count) => {
+        if (err) {
+          console.error('[indexer] Error:', err.message);
+          await shutdown(dist);
+          process.exit(1);
+        }
+        console.log(`[indexer] done. ${count} year:word index entries built.`);
+        await shutdown(dist);
+        process.exit(0);
+      });
     });
   })();
 }

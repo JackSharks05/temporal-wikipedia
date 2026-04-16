@@ -32,8 +32,8 @@
 #cd temporal-wikipedia
 #git checkout -b aws 
 #git pull origin aws
-# orhcestrator : 34.227.9.85
-# 52.23.185.189
+# orhcestrator :
+# 98.93.171.62
 
 
 

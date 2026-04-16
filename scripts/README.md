@@ -9,4 +9,4 @@ node scripts/runCrawl.js \
   --seed "Distributed computing" \
   --article-cap 10000 \
   --max-rounds 300 \
-  --history-limit 10000
+  --history-limit 100000

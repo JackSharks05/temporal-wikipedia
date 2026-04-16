@@ -99,10 +99,12 @@ function mr(config) {
           job.count += 1;
 
           if (job.count < job.expected) {
+            console.log('[mr:' + name + '] ' + job.phase + ': ' + job.count + '/' + job.expected + ' workers done');
             return cb(null,core);
           }
 
           if (job.phase === 'map') {
+            console.log('[mr:' + name + '] all ' + job.expected + ' workers finished map, starting shuffle');
             job.phase = 'shuffle';
             job.count = 0;
             globalThis.distribution[job.gid].comm.send([name], {service: name, method: 'shuffle'}, () => {});
@@ -110,6 +112,7 @@ function mr(config) {
           }
 
           if (job.phase === 'shuffle') {
+            console.log('[mr:' + name + '] all workers finished shuffle, starting reduce');
             job.phase = 'reduce';
             job.count = 0;
             globalThis.distribution[job.gid].comm.send([name],{service: name, method: 'reduce'},() => {});
@@ -118,6 +121,8 @@ function mr(config) {
 
           const done = job.cb;
           const out = job.results.slice();
+
+          console.log('[mr:' + name + '] all workers finished reduce, cleaning up (' + out.length + ' results)');
 
           globalThis.distribution[job.gid].comm.send([name],{service: name, method: 'cleanup'},() => {
                 globalThis.distribution[job.gid].routes.rem(name,() => {
@@ -146,14 +151,20 @@ function mr(config) {
 
           let i = 0;
 
+          console.log('[mr] map starting: ' + job.keys.length + ' keys on this worker');
 
           const finish = () => {
+            console.log('[mr] map done: ' + job.keys.length + ' keys processed');
             return dist.local.comm.send([name,{phase:'map'}],{node: job.coord, service: name, method: 'notify'},() => cb(null, name));
           };
 
           const nextKey = () => {
             if (i >= job.keys.length) {
               return finish();
+            }
+
+            if (i > 0 && i % 100 === 0) {
+              console.log('[mr] map progress: ' + i + '/' + job.keys.length);
             }
 
             const key = job.keys[i];
@@ -213,13 +224,17 @@ function mr(config) {
           }
 
           const finish = () => {
+            console.log('[mr] shuffle done');
             return dist.local.comm.send([name,{phase:'shuffle'}],{node:job.coord,service:name,method:'notify'},() => cb(null,name));
           };
 
           dist.local.mem.get({gid:job.mapGid,key:null},(e,mapKeys) => {
             if (e|| !Array.isArray(mapKeys) || mapKeys.length === 0) {
+              console.log('[mr] shuffle: no mapped entries on this worker');
               return finish();
             }
+
+            console.log('[mr] shuffle: ' + mapKeys.length + ' mapped entries to redistribute');
 
             let i = 0;
 
@@ -273,19 +288,27 @@ function mr(config) {
           const out = [];
 
           const finish = () => {
+            console.log('[mr] reduce done: ' + out.length + ' reduced entries emitted');
             return dist.local.comm.send([name,{phase:'reduce',out:out}],{node:job.coord,service:name,method:'notify'},() => cb(null,out),);
           };
 
           dist.local.mem.get({gid:job.shuffleGid,key:null},(e,reduceKeys) => {
             if (e || !Array.isArray(reduceKeys) || reduceKeys.length === 0) {
+              console.log('[mr] reduce: no keys on this worker');
               return finish();
             }
+
+            console.log('[mr] reduce: ' + reduceKeys.length + ' keys to reduce');
 
             let i = 0;
 
             const nextReduce = () => {
               if (i >= reduceKeys.length) {
                 return finish();
+              }
+
+              if (i > 0 && i % 500 === 0) {
+                console.log('[mr] reduce progress: ' + i + '/' + reduceKeys.length);
               }
 
               const reduceKey = reduceKeys[i];

@@ -78,6 +78,8 @@ function makeIndexMapper() {
     return function mapSegment(key, segment) {
       if (!segment || !segment.base) return [];
 
+      console.log('[indexer] mapping: ' + (segment.title || key) + ' seg=' + (segment.segmentId || 0) + ' deltas=' + (segment.deltas || []).length);
+
       var Diff = process.mainModule.require('diff');
 
       var STOP = {'the':1,'is':1,'a':1,'an':1,'and':1,'or':1,'but':1,'in':1,

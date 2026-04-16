@@ -26,31 +26,43 @@ function normalizeStoreError(error) {
 
 /**
  * MR map shim — a tiny function that delegates to ./mapper.js on each worker.
- * We use `new Function` so that `gid` is inlined into the source (closed-over
- * variables do not survive serialization via util.serialize -> toString).
+ *
+ * IMPORTANT: we build the shim with `new Function(argNames..., body)` so the
+ * produced function has NO outer closure. util.serialize stringifies via
+ * `String(fn)` which drops closures — any free variable referenced from an
+ * outer scope would be undefined on the worker. So we inline `gid` as a
+ * string literal directly into the body. We also wrap the require+call in a
+ * try/catch that logs on the worker, so future silent failures are visible.
  */
 function makeIndexMapper(gid) {
-  return new Function(`
-    var GID = ${JSON.stringify(gid)};
-    return function mapArticleShim(key, value) {
+  const gidLit = JSON.stringify(gid);
+  return new Function('key', 'value', `
+    try {
       var p = require('path');
       var impl = require(p.join(process.cwd(), 'indexer', 'temporalDiff', 'mapper.js'));
-      return impl.mapArticle(GID, key, value);
-    };
-  `)();
+      return impl.mapArticle(${gidLit}, key, value);
+    } catch (err) {
+      console.log('[indexer:shim] map error for key=' + key + ': ' + (err && err.message));
+      return [];
+    }
+  `);
 }
 
 /**
  * MR reduce shim — delegates to ./reducer.js on each worker.
+ * No closure variables; same try/catch pattern for visibility.
  */
 function makeIndexReducer() {
-  return new Function(`
-    return function reduceYearWordShim(key, values) {
+  return new Function('key', 'values', `
+    try {
       var p = require('path');
       var impl = require(p.join(process.cwd(), 'indexer', 'temporalDiff', 'reducer.js'));
       return impl.reduceYearWord(key, values);
-    };
-  `)();
+    } catch (err) {
+      console.log('[indexer:shim] reduce error for key=' + key + ': ' + (err && err.message));
+      return null;
+    }
+  `);
 }
 
 /**

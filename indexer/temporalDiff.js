@@ -265,7 +265,7 @@ function buildDistributedIndex(gid, callback) {
     console.log(`[indexer] found ${segKeys.length} segments, starting MapReduce...`);
 
     service.mr.exec({
-      keys: segKeys,
+      keyPrefix: 'article-segment:',
       map: makeIndexMapper(),
       reduce: makeIndexReducer(),
     }, (mrErr, results) => {

@@ -347,47 +347,42 @@ function mr(config) {
 
             console.log('[mr] reduce: ' + reduceKeys.length + ' keys to reduce');
 
-            let i = 0;
-
-            const nextReduce = () => {
-              if (i >= reduceKeys.length) {
-                return finish();
-              }
-
+            // Synchronous tight loop. dist.local.mem.get invokes its callback
+            // on the same tick, so the prior recursive nextReduce pattern grew
+            // the V8 stack ~3-4 frames per key and threw RangeError around
+            // 2500-3000 iterations, leaving the reduce RPC hung. A plain for
+            // loop reads each value via the same-tick callback with zero stack
+            // growth and no per-iteration closure allocations.
+            for (let i = 0; i < reduceKeys.length; i++) {
               if (i > 0 && i % 500 === 0) {
                 console.log('[mr] reduce progress: ' + i + '/' + reduceKeys.length);
               }
 
               const reduceKey = reduceKeys[i];
-              i += 1;
-
-              dist.local.mem.get({gid: job.shuffleGid, key: reduceKey}, (ge, values) => {
-                if (ge) {
-                  return nextReduce();
-                }
-
-                if (!Array.isArray(values)) {
-                  values = [values];
-                }
-
-                let reduced = null;
-                try {
-                  reduced = job.reduce(reduceKey, values);
-                } catch (err) {
-                  reduced = null;
-                }
-
-                if (Array.isArray(reduced)) {
-                  reduced.forEach((x) => out.push(x));
-                } else if (reduced && typeof reduced === 'object') {
-                  out.push(reduced);
-                }
-
-                return nextReduce();
+              let values = null;
+              let getErr = null;
+              dist.local.mem.get({gid: job.shuffleGid, key: reduceKey}, (ge, v) => {
+                getErr = ge;
+                values = v;
               });
-            };
+              if (getErr) continue;
+              if (!Array.isArray(values)) values = [values];
 
-            return nextReduce();
+              let reduced = null;
+              try {
+                reduced = job.reduce(reduceKey, values);
+              } catch (err) {
+                reduced = null;
+              }
+
+              if (Array.isArray(reduced)) {
+                for (const x of reduced) out.push(x);
+              } else if (reduced && typeof reduced === 'object') {
+                out.push(reduced);
+              }
+            }
+
+            return finish();
           });
         },
 

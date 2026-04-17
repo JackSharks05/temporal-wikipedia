@@ -6,7 +6,8 @@
   "debug": false,
   "scripts": {
     "ingest": "node storage/ingestDumpToStore.js",
-    "check": "node storage/checkStoredArticle.js"
+    "check": "node storage/checkStoredArticle.js",
+    "crawl": "node crawler/distributedCrawler.js"
   },
   "dependencies": {
     "diff": "^8.0.4",

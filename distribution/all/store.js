@@ -18,6 +18,23 @@
 
 const getLocal = () => globalThis.distribution.local;
 const util = require("../util/util.js");
+
+function getPlacementKey(key) {
+  if (typeof key !== 'string') {
+    return key;
+  }
+  let match = key.match(/^article-(meta|manifest):([^:]+)$/);
+  if (match) {
+    return `article-home:${match[2]}`;
+  }
+  match = key.match(/^article-segment:([^:]+):[^:]+$/);
+  if (match) {
+    return `article-home:${match[1]}`;
+  }
+  return key;
+}
+
+
 /**
  * @param {Config} config
  */
@@ -35,7 +52,7 @@ function store(config) {
   function get(configuration, callback) {
     const key = (typeof(configuration) == 'string' || configuration == null) ? /** @type {string | null} */ (configuration) : configuration.key;
     const gid = (configuration != null && typeof(configuration) == 'object' && configuration.gid) ? configuration.gid : context.gid;
-    getLocal().groups.get(gid, (e, /** @type {Object.<string, Node>} */ group) => { // NEW
+    getLocal().groups.get(gid, (e, /** @type {Object.<string, Node>} */ group) => {
       if (e) {
         return callback(e);
       }
@@ -45,10 +62,11 @@ function store(config) {
         nidsToNode[util.id.getNID(node)] = node;
       }
       if (key) {
-        const targetNode = nidsToNode[context.hash(util.id.getID(key), nids)];
+        const placementKey = getPlacementKey(key);
+        const targetNode = nidsToNode[context.hash(util.id.getID(placementKey),nids)];
         const remote = {node: targetNode, service: 'store', method: 'get'};
         const params = {key: key, gid: gid};
-        getLocal().comm.send([params], remote, (e, v) => { // NEW
+        getLocal().comm.send([params], remote, (e, v) => {
           return callback(e, v);
         });
       } else {
@@ -59,7 +77,7 @@ function store(config) {
         for (const node of Object.values(group)) {
           const remote = {node: node, service: 'store', method: 'get'};
           const params = {key: key, gid: gid};
-          getLocal().comm.send([params], remote, (e, v) => { // NEW
+          getLocal().comm.send([params], remote, (e, v) => {
             if (e) {
               errors[util.id.getNID(node)] = e;
             } else {
@@ -97,7 +115,8 @@ function store(config) {
       for (const node of Object.values(group)) {
         nidsToNode[util.id.getNID(node)] = node;
       }
-      const targetNode = nidsToNode[context.hash(util.id.getID(key), nids)];
+      const placementKey = getPlacementKey(key);
+      const targetNode = nidsToNode[context.hash(util.id.getID(placementKey),nids)];
       const message = {key: key, gid: gid};
       const remote = {node: targetNode, service: 'store', method: 'put'};
       getLocal().comm.send([state, message], remote, (e, v) => { // NEW
@@ -118,7 +137,7 @@ function store(config) {
     globalThis.distribution.util.log(`append called ${configuration}`, 'info');
     const key = ((configuration == null || typeof(configuration) === 'string') ? configuration : configuration.key) || util.id.getID(state);
     const gid = (configuration != null && typeof(configuration) == 'object' && configuration.gid) ? configuration.gid : context.gid;
-    getLocal().groups.get(gid, (e, /** @type {Object.<string, Node>} */ group) => { // NEW
+    getLocal().groups.get(gid, (e, /** @type {Object.<string, Node>} */ group) => {
       if (e) {
         return callback(e);
       }
@@ -127,10 +146,11 @@ function store(config) {
       for (const node of Object.values(group)) {
         nidsToNode[util.id.getNID(node)] = node;
       }
-      const targetNode = nidsToNode[context.hash(util.id.getID(key), nids)];
+      const placementKey = getPlacementKey(key);
+      const targetNode = nidsToNode[context.hash(util.id.getID(placementKey),nids)];
       const message = {key: key, gid: gid};
       const remote = {node: targetNode, service: 'store', method: 'append'};
-      getLocal().comm.send([state, message], remote, (e, v) => { // NEW
+      getLocal().comm.send([state, message], remote, (e, v) => {
         if (e) {
           return callback(Error(e.message));
         }
@@ -150,7 +170,7 @@ function store(config) {
     if (key == null) {
       return callback(Error(`can't delete null key`));
     }
-    getLocal().groups.get(gid, (e, /** @type {Object.<string, Node>} */ group) => { // NEW
+    getLocal().groups.get(gid, (e, /** @type {Object.<string, Node>} */ group) => {
       if (e) {
         return callback(e);
       }
@@ -159,10 +179,11 @@ function store(config) {
       for (const node of Object.values(group)) {
         nidsToNode[util.id.getNID(node)] = node;
       }
-      const targetNode = nidsToNode[context.hash(util.id.getID(key), nids)];
+      const placementKey = getPlacementKey(key);
+      const targetNode = nidsToNode[context.hash(util.id.getID(placementKey), nids)];
       const message = {key: key, gid: gid};
       const remote = {node: targetNode, service: 'store', method: 'del'};
-      getLocal().comm.send([message], remote, (e, v) => { // NEW
+      getLocal().comm.send([message], remote, (e, v) => {
         if (e) {
           return callback(Error(e.message));
         }
@@ -180,7 +201,7 @@ function store(config) {
      * @param {Callback} callback
      */
   function reconf(configuration, callback) {
-    getLocal().groups.get(context.gid, (e, curGroup) => { // NEW
+    getLocal().groups.get(context.gid, (e, curGroup) => {
       local.groups.put(context.gid, configuration, (e, v) => {
         const config = {
           gid: context.gid,
@@ -214,7 +235,9 @@ function store(config) {
             const putResults = {};
             let resolved = 0;
             const keysToMove = keys.filter((key) => {
-              return context.hash(util.id.getID(key), oldNids) != context.hash(util.id.getID(key), newNids);
+              const placementKey = getPlacementKey(key);
+              return context.hash(util.id.getID(placementKey),oldNids) !=
+                context.hash(util.id.getID(placementKey), newNids);
             });
             const handleDone = () => {
               if ((resolved == keysToMove.length)) {
@@ -223,11 +246,12 @@ function store(config) {
             };
             if (keysToMove.length === 0) return callback(null, {});
             for (const key of keysToMove) {
-              const oldNode = oldNidToNode[context.hash(util.id.getID(key), oldNids)];
-              const newNode = newNidToNode[context.hash(util.id.getID(key), newNids)];
+              const placementKey = getPlacementKey(key);
+              const oldNode = oldNidToNode[context.hash(util.id.getID(placementKey),oldNids)];
+              const newNode = newNidToNode[context.hash(util.id.getID(placementKey),newNids)];
               const message = {gid: context.gid, key: key};
               const delRemote = {node: oldNode, service: 'store', method: 'del'};
-              getLocal().comm.send([message], delRemote, (e, delVal) => { // NEW
+              getLocal().comm.send([message], delRemote, (e, delVal) => {
                 if (e) {
                   errors[key] = e;
                   resolved++;
@@ -236,7 +260,7 @@ function store(config) {
                 };
                 const putRemote = {node: newNode, service: 'store', method: 'put'};
                 const putMessage = [delVal, {gid: context.gid, key: key}];
-                getLocal().comm.send(putMessage, putRemote, (e, putResult) => { // NEW
+                getLocal().comm.send(putMessage, putRemote, (e, putResult) => {
                   if (e) {
                     errors[key] = e;
                     resolved++;
@@ -254,9 +278,7 @@ function store(config) {
       });
     });
   }
-
-  /* For the distributed store service, the configuration will
-          always be a string */
+ 
   return {get, put, append, del, reconf};
 }
 

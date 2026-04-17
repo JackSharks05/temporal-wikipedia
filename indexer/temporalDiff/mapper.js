@@ -1,20 +1,26 @@
 /**
- * temporalDiff mapper — plain Node module, required on each worker
+ * temporalDiff mapper -- plain Node module, required on each worker
  * by the MR shim in indexer/temporalDiff/index.js at runtime.
  *
- * Signature (called once per article):
- *   mapArticle(gid, key, meta) -> Array<{ "<year>:<word>": { article, added, removed } }>
+ * Invoked once per article (MR keyPrefix = 'article-meta:').
  *
- * Flow:
- *   1. Load article-segment:<pageId>:0..N one segment at a time via fs + sha256
- *      (guaranteed co-located by placement key article-home:<pageId>).
- *   2. Walk revisions in chronological order, applying patches to a single
- *      content cursor.
- *   3. Sliding-window year tracking: remember the last revision of the
- *      previous active year (prevEnd) and the latest revision of the
- *      current year (currLatest). On year transition, diff(prevEnd,
- *      currLatest) and attribute the changes to currYear.
- *   4. After the last revision, flush the final year.
+ * High-level flow:
+ *   1. Load article-manifest:<pageId> (metadata only, cheap).
+ *   2. From the manifest, compute which segments OWN a year-end revision.
+ *      A segment owns year Y iff Y ends inside it: yearOf(start) <= Y < yearOf(end).
+ *      The final segment additionally owns its final year.
+ *      Segments entirely inside a single year (not final) own nothing and
+ *      are NEVER loaded.
+ *   3. For each owning segment, load it once, rebuild from seg.base.content
+ *      (a full snapshot via the crawler's carryOver mechanism), replay only
+ *      its own deltas, and snapshot the cursor at the last revision with
+ *      yearOf(ts) == Y for each Y it owns.
+ *   4. Walk the active years in order and frequency-diff consecutive
+ *      year-end snapshots (O(N+M) per pair, no LCS).
+ *   5. Emit one {'<year>:<word>': {article, added, removed}} object per
+ *      (year, word) pair seen.
+ *
+ * If the manifest is missing or malformed, log a warning and return [].
  */
 
 const fs = require('fs');
@@ -52,67 +58,120 @@ function yearOf(ts) {
   return new Date(ts).getUTCFullYear();
 }
 
-function loadSegment(storeDir, pageId, sid) {
-  const segKey = `article-segment:${pageId}:${sid}`;
-  const fn = crypto.createHash('sha256').update(segKey).digest('hex');
+function loadJsonKey(storeDir, key) {
+  const fn = crypto.createHash('sha256').update(key).digest('hex');
   const fp = path.join(storeDir, fn);
   if (!fs.existsSync(fp)) return null;
   try {
     const raw = fs.readFileSync(fp, 'utf8');
     const parsed = globalThis.distribution.util.deserialize(raw);
-    return (parsed && parsed.value) ? parsed.value : null;
+    return (parsed && 'value' in parsed) ? parsed.value : null;
   } catch (e) {
     return null;
   }
 }
 
+/**
+ * Frequency-count diff. O(N+M) vs Diff.diffWords' O(N*M).
+ * For each word whose count changed between oldText and newText, attribute
+ * the delta to (yr, word): net increases -> added, net decreases -> removed.
+ */
 function tallyDiff(oldText, newText, yr, title, agg) {
-  const changes = Diff.diffWords(oldText, newText, {ignoreCase: true});
-  for (const ch of changes) {
-    if (!ch.added && !ch.removed) continue;
-    const words = tok(ch.value);
-    for (const word of words) {
-      const yw = `${yr}:${word}`;
-      if (!agg[yw]) agg[yw] = {article: title, added: 0, removed: 0};
-      if (ch.added) agg[yw].added += 1;
-      if (ch.removed) agg[yw].removed += 1;
-    }
+  const oldFreq = Object.create(null);
+  const newFreq = Object.create(null);
+  for (const w of tok(oldText)) oldFreq[w] = (oldFreq[w] || 0) + 1;
+  for (const w of tok(newText)) newFreq[w] = (newFreq[w] || 0) + 1;
+  const seen = Object.create(null);
+  for (const w of Object.keys(oldFreq)) seen[w] = true;
+  for (const w of Object.keys(newFreq)) seen[w] = true;
+  for (const w of Object.keys(seen)) {
+    const o = oldFreq[w] || 0;
+    const n = newFreq[w] || 0;
+    if (o === n) continue;
+    const yw = `${yr}:${w}`;
+    if (!agg[yw]) agg[yw] = {article: title, added: 0, removed: 0};
+    if (n > o) agg[yw].added += (n - o);
+    else agg[yw].removed += (o - n);
   }
 }
 
 /**
- * Ingest a single revision into the sliding-window state.
+ * Build segToYears from the manifest. Each segment owns the years that END
+ * inside it (so we can pick up the last revision of those years by walking
+ * only that one segment's deltas). The final segment also owns its final
+ * year since no later segment exists to mark a Y->Y+1 transition.
  *
- * @param {string} content - full text at this revision
- * @param {string} ts - timestamp string
- * @param {object} state - {prevEnd, currYear, currLatest, title, agg}
+ * Returns:
+ *   {
+ *     segToYears: {segmentId: [Y, ...]},
+ *     activeYears: [Y, ...] sorted unique,
+ *   }
  */
-function ingest(content, ts, state) {
-  const y = yearOf(ts);
-  if (state.currYear === null) {
-    state.currYear = y;
-    state.currLatest = content;
-    return;
+function buildSegToYears(segments) {
+  const segToYears = Object.create(null);
+  const yearSet = new Set();
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    const yStart = yearOf(seg.startTimestamp);
+    const yEnd = yearOf(seg.endTimestamp);
+    for (let y = yStart; y <= yEnd; y++) yearSet.add(y);
+    for (let y = yStart; y < yEnd; y++) {
+      if (!segToYears[seg.segmentId]) segToYears[seg.segmentId] = [];
+      segToYears[seg.segmentId].push(y);
+    }
+    if (i === segments.length - 1) {
+      if (!segToYears[seg.segmentId]) segToYears[seg.segmentId] = [];
+      segToYears[seg.segmentId].push(yEnd);
+    }
   }
-  if (y === state.currYear) {
-    state.currLatest = content;
-    return;
+  const activeYears = Array.from(yearSet).sort((a, b) => a - b);
+  return {segToYears, activeYears};
+}
+
+/**
+ * Load one segment, replay its deltas starting from seg.base.content, and
+ * snapshot the cursor at the last revision with yearOf(ts) == Y for each
+ * Y in ownedYears.
+ *
+ * Only years in ownedYears end up in the returned yearEnd map; transient
+ * per-year snapshots are dropped as soon as we move past their year, so
+ * peak memory is bounded by the number of years a single segment spans
+ * (typically 1-3).
+ */
+function snapshotYearEndsInSegment(seg, ownedYears) {
+  const owned = new Set(ownedYears);
+  const yearEnd = Object.create(null);
+  if (!seg || !seg.base) return yearEnd;
+
+  let cursor = seg.base.content || '';
+  let currYear = yearOf(seg.base.timestamp);
+  let currContent = cursor;
+
+  const flush = (y, content) => {
+    if (owned.has(y)) yearEnd[y] = content;
+  };
+
+  const deltas = seg.deltas || [];
+  for (const delta of deltas) {
+    const patched = Diff.applyPatch(cursor, delta.patch);
+    if (patched !== false) cursor = patched;
+    const y = yearOf(delta.timestamp);
+    if (y === currYear) {
+      currContent = cursor;
+    } else {
+      flush(currYear, currContent);
+      currYear = y;
+      currContent = cursor;
+    }
   }
-  if (state.prevEnd !== null) {
-    tallyDiff(state.prevEnd, state.currLatest, state.currYear, state.title, state.agg);
-  }
-  state.prevEnd = state.currLatest;
-  state.currYear = y;
-  state.currLatest = content;
+  flush(currYear, currContent);
+
+  return yearEnd;
 }
 
 function mapArticle(gid, key, meta) {
-  if (!meta) {
-    console.log(`[indexer] skipping key=${key}: meta is ${meta === null ? 'null' : typeof meta}`);
-    return [];
-  }
-  if (!meta.pageId) {
-    console.log(`[indexer] skipping key=${key}: meta missing pageId; keys=${Object.keys(meta).join(',')}`);
+  if (!meta || !meta.pageId) {
+    console.log(`[indexer] skipping key=${key}: meta missing or has no pageId`);
     return [];
   }
 
@@ -123,56 +182,56 @@ function mapArticle(gid, key, meta) {
       globalThis.distribution.node.config);
   const storeDir = path.join(process.cwd(), 'store', nid, gid);
 
-  const firstSeg = loadSegment(storeDir, pageId, 0);
-  if (!firstSeg || !firstSeg.base) {
-    console.log(`[indexer] skipping ${title} (no local segment 0 for pageId=${pageId}, storeDir=${storeDir})`);
+  const manifest = loadJsonKey(storeDir, `article-manifest:${pageId}`);
+  if (!manifest || !Array.isArray(manifest.segments) || manifest.segments.length === 0) {
+    console.log(`[indexer] no manifest for ${title} (pageId=${pageId}); skipping`);
     return [];
   }
 
-  console.log(`[indexer] start: ${title} (pageId=${pageId})`);
+  const segments = manifest.segments.slice().sort((a, b) => a.segmentId - b.segmentId);
+  const {segToYears, activeYears} = buildSegToYears(segments);
+  const totalSegs = segments.length;
+  const targetSegIds = Object.keys(segToYears);
 
-  const state = {
-    prevEnd: null,
-    currYear: null,
-    currLatest: null,
-    title,
-    agg: Object.create(null),
-  };
+  const t0 = Date.now();
+  console.log(`[indexer] start: ${title} (pageId=${pageId}, segments=${totalSegs}, yearsActive=${activeYears.length}, targetSegs=${targetSegIds.length})`);
 
-  let content = firstSeg.base.content || '';
-  ingest(content, firstSeg.base.timestamp, state);
-  const firstDeltas = firstSeg.deltas || [];
-  for (const delta of firstDeltas) {
-    const patched = Diff.applyPatch(content, delta.patch);
-    if (patched !== false) content = patched;
-    ingest(content, delta.timestamp, state);
-  }
-  let segCount = 1;
-
-  for (let sid = 1; sid < 100000; sid++) {
-    const seg = loadSegment(storeDir, pageId, sid);
-    if (!seg) break;
-    const deltas = seg.deltas || [];
-    for (const delta of deltas) {
-      const patched = Diff.applyPatch(content, delta.patch);
-      if (patched !== false) content = patched;
-      ingest(content, delta.timestamp, state);
+  const yearEnd = Object.create(null);
+  let segsLoaded = 0;
+  for (const segIdStr of targetSegIds) {
+    const segId = Number(segIdStr);
+    const seg = loadJsonKey(storeDir, `article-segment:${pageId}:${segId}`);
+    if (!seg) {
+      console.log(`[indexer] warning: missing segment ${segId} for ${title}; skipping`);
+      continue;
     }
-    segCount++;
+    segsLoaded++;
+    const ownedYears = segToYears[segIdStr];
+    const snapshots = snapshotYearEndsInSegment(seg, ownedYears);
+    for (const y of Object.keys(snapshots)) {
+      yearEnd[y] = snapshots[y];
+    }
   }
 
-  if (state.prevEnd !== null && state.currLatest !== null) {
-    tallyDiff(state.prevEnd, state.currLatest, state.currYear, state.title, state.agg);
+  const agg = Object.create(null);
+  let prev = null;
+  for (const y of activeYears) {
+    const curr = yearEnd[y];
+    if (prev !== undefined && prev !== null && curr !== undefined) {
+      tallyDiff(prev, curr, y, title, agg);
+    }
+    if (curr !== undefined) prev = curr;
   }
 
   const out = [];
-  for (const yw of Object.keys(state.agg)) {
+  for (const yw of Object.keys(agg)) {
     const o = {};
-    o[yw] = state.agg[yw];
+    o[yw] = agg[yw];
     out.push(o);
   }
 
-  console.log(`[indexer] mapped: ${title} (pageId=${pageId}, ${segCount} segments, ${out.length} year:word entries)`);
+  const elapsedMs = Date.now() - t0;
+  console.log(`[indexer] mapped: ${title} (pageId=${pageId}, loaded ${segsLoaded}/${totalSegs} segments, ${out.length} year:word entries, ${elapsedMs}ms)`);
   return out;
 }
 

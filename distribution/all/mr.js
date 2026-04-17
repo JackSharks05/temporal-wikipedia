@@ -399,8 +399,14 @@ function mr(config) {
           const job = globalThis.__mr && globalThis.__mr[name];
           if (job && job.mapGid) {
             try {
-              const path = require('path');
-              const fs = require('fs');
+              // mr service methods are serialized and rebuilt via `new Function`
+              // on workers, so they have no module-scope `require`. Use the
+              // worker-exposed require (set in scripts/startWorker.js) so we
+              // can still load fs/path during cleanup.
+              const req = globalThis.__workerRequire || (typeof require === 'function' ? require : null);
+              if (!req) throw new Error('worker missing globalThis.__workerRequire');
+              const path = req('path');
+              const fs = req('fs');
               const nid = globalThis.distribution.util.id.getNID(
                   globalThis.distribution.node.config,
               );
@@ -411,6 +417,22 @@ function mr(config) {
               }
             } catch (cleanErr) {
               console.log('[mr] cleanup warning: ' + cleanErr.message);
+            }
+          }
+
+          // Drop the in-memory shuffle partition so intermediate data does
+          // not accumulate across MR jobs on a long-running worker.
+          if (job && job.shuffleGid) {
+            try {
+              const mem = globalThis.distribution.local.mem;
+              mem.get({gid: job.shuffleGid, key: null}, (ge, keys) => {
+                if (ge || !Array.isArray(keys) || keys.length === 0) return;
+                for (const k of keys) {
+                  mem.del({gid: job.shuffleGid, key: k}, () => {});
+                }
+              });
+            } catch (memErr) {
+              console.log('[mr] cleanup mem warning: ' + memErr.message);
             }
           }
 

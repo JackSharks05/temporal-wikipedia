@@ -3,3 +3,4 @@ store/
 .DS_Store
 npm-debug.log*
 CLAUDE.md
+crawl_save.json

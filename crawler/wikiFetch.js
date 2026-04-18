@@ -377,6 +377,8 @@ module.exports = {
   DEFAULT_TIMEOUT_MS,
   DEFAULT_HISTORY_LIMIT,
   DEFAULT_USER_AGENT,
+  api,
+  revisionContent,
   normalizeDisplayTitle,
   getTitleKey,
   shouldFollowArticleTitle,

@@ -389,12 +389,6 @@ function mr(config) {
 
             console.log('[mr] reduce: ' + reduceKeys.length + ' keys to reduce');
 
-            // Synchronous tight loop. dist.local.mem.get invokes its callback
-            // on the same tick, so the prior recursive nextReduce pattern grew
-            // the V8 stack ~3-4 frames per key and threw RangeError around
-            // 2500-3000 iterations, leaving the reduce RPC hung. A plain for
-            // loop reads each value via the same-tick callback with zero stack
-            // growth and no per-iteration closure allocations.
             for (let i = 0; i < reduceKeys.length; i++) {
               if (i > 0 && i % 500 === 0) {
                 console.log('[mr] reduce progress: ' + i + '/' + reduceKeys.length);

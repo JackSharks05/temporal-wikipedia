@@ -23,7 +23,7 @@ function getPlacementKey(key) {
   if (typeof key !== 'string') {
     return key;
   }
-  let match = key.match(/^article-(meta|manifest):([^:]+)$/);
+  let match = key.match(/^article-(meta|manifest|year-history):([^:]+)$/);
   if (match) {
     return `article-home:${match[2]}`;
   }

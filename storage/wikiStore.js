@@ -9,6 +9,7 @@ const keyForTitle = (title)=> `article-title:${normalizeTitle(title)}`;
 const keyForMeta = (pageId)=> `article-meta:${pageId}`;
 const keyForManifest = (pageId)=> `article-manifest:${pageId}`;
 const keyForSegment = (pageId, segmentId)=> `article-segment:${pageId}:${segmentId}`;
+const keyForYearEnd = (title) => `article-year-history:${normalizeTitle(title)}`;
 
 const getStore = (gid) => globalThis.distribution[gid].store;
 
@@ -49,6 +50,19 @@ function storeArticle(gid,article,callback,options = {}) {
   });
 }
 
+function storeYearEndState(gid, title, data, callback) {
+  if (typeof callback !== 'function') callback = () => {};
+  if (!title || !data) {
+    return callback(new Error('storeYearEndState: requires title and data'));
+  }
+
+  getStore(gid).put(data, {gid, key: keyForYearEnd(title)}, (error) => {
+    const normalized = normalizeStoreError(error);
+    if (normalized) return callback(normalized);
+    callback(null, {title});
+  });
+}
+
 function getKey(gid,key,callback) {
   getStore(gid).get({gid,key},(error,value) => {
     callback(normalizeStoreError(error),value);
@@ -65,8 +79,10 @@ module.exports = {
   keyForMeta,
   keyForManifest,
   keyForSegment,
+  keyForYearEnd,
   normalizeTitle,
   storeArticle,
+  storeYearEndState,
   getArticleMeta,
   getArticleManifest,
   getArticleSegment,

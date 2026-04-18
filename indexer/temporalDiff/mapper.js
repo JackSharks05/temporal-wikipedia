@@ -1,26 +1,5 @@
 /**
- * temporalDiff mapper -- plain Node module, required on each worker
- * by the MR shim in indexer/temporalDiff/index.js at runtime.
- *
- * Invoked once per article (MR keyPrefix = 'article-meta:').
- *
- * High-level flow:
- *   1. Load article-manifest:<pageId> (metadata only, cheap).
- *   2. From the manifest, compute which segments OWN a year-end revision.
- *      A segment owns year Y iff Y ends inside it: yearOf(start) <= Y < yearOf(end).
- *      The final segment additionally owns its final year.
- *      Segments entirely inside a single year (not final) own nothing and
- *      are NEVER loaded.
- *   3. For each owning segment, load it once, rebuild from seg.base.content
- *      (a full snapshot via the crawler's carryOver mechanism), replay only
- *      its own deltas, and snapshot the cursor at the last revision with
- *      yearOf(ts) == Y for each Y it owns.
- *   4. Walk the active years in order and frequency-diff consecutive
- *      year-end snapshots (O(N+M) per pair, no LCS).
- *   5. Emit one {'<year>:<word>': {article, added, removed}} object per
- *      (year, word) pair seen.
- *
- * If the manifest is missing or malformed, log a warning and return [].
+ * temporalDiff mapper — invoked once per article (MR keyPrefix 'article-meta:').
  */
 
 const fs = require('fs');
@@ -45,17 +24,27 @@ const STOP = new Set([
   'once', 'here', 'there', 'any', 'very', 'too', 'being',
 ]);
 
-function tok(text) {
-  if (!text) return [];
-  return text
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter((w) => w && !STOP.has(w) && w.length > 2);
-}
+const TOKEN_RE = /[a-z0-9]+/g;
 
 function yearOf(ts) {
   return new Date(ts).getUTCFullYear();
+}
+
+/**
+ * Accumulate token counts from `text` directly into `freq`. No intermediate
+ * array allocation. Filters stop-words and tokens shorter than 3 chars inline.
+ */
+function tokenizeInto(text, freq) {
+  if (!text) return freq;
+  const lower = text.toLowerCase();
+  TOKEN_RE.lastIndex = 0;
+  let m;
+  while ((m = TOKEN_RE.exec(lower)) !== null) {
+    const w = m[0];
+    if (w.length <= 2 || STOP.has(w)) continue;
+    freq.set(w, (freq.get(w) || 0) + 1);
+  }
+  return freq;
 }
 
 function loadJsonKey(storeDir, key) {
@@ -71,75 +60,127 @@ function loadJsonKey(storeDir, key) {
   }
 }
 
-function tallyDiff(oldText, newText, yr, title, agg) {
-  const oldFreq = Object.create(null);
-  const newFreq = Object.create(null);
-  for (const w of tok(oldText)) oldFreq[w] = (oldFreq[w] || 0) + 1;
-  for (const w of tok(newText)) newFreq[w] = (newFreq[w] || 0) + 1;
-  const seen = Object.create(null);
-  for (const w of Object.keys(oldFreq)) seen[w] = true;
-  for (const w of Object.keys(newFreq)) seen[w] = true;
-  for (const w of Object.keys(seen)) {
-    const o = oldFreq[w] || 0;
-    const n = newFreq[w] || 0;
-    if (o === n) continue;
-    const yw = `${yr}:${w}`;
-    if (!agg[yw]) agg[yw] = {article: title, added: 0, removed: 0};
-    if (n > o) agg[yw].added += (n - o);
-    else agg[yw].removed += (o - n);
-  }
-}
-
+/**
+ * Produce {segToYears, activeYears} where segToYears maps segmentId → array
+ * of years that segment owns. A year is "owned" where its year-end revision
+ * lives. Final segment also owns its own end year.
+ */
 function buildSegToYears(segments) {
   const segToYears = Object.create(null);
   const yearSet = new Set();
+
+  const addOwned = (segId, y) => {
+    let arr = segToYears[segId];
+    if (!arr) arr = segToYears[segId] = [];
+    arr.push(y);
+  };
+
   for (let i = 0; i < segments.length; i++) {
     const seg = segments[i];
     const yStart = yearOf(seg.startTimestamp);
     const yEnd = yearOf(seg.endTimestamp);
     for (let y = yStart; y <= yEnd; y++) yearSet.add(y);
-    for (let y = yStart; y < yEnd; y++) {
-      if (!segToYears[seg.segmentId]) segToYears[seg.segmentId] = [];
-      segToYears[seg.segmentId].push(y);
-    }
-    if (i === segments.length - 1) {
-      if (!segToYears[seg.segmentId]) segToYears[seg.segmentId] = [];
-      segToYears[seg.segmentId].push(yEnd);
-    }
+    for (let y = yStart; y < yEnd; y++) addOwned(seg.segmentId, y);
+    if (i === segments.length - 1) addOwned(seg.segmentId, yEnd);
   }
+
   const activeYears = Array.from(yearSet).sort((a, b) => a - b);
   return {segToYears, activeYears};
 }
 
-function snapshotYearEndsInSegment(seg, ownedYears) {
-  const owned = new Set(ownedYears);
-  const yearEnd = Object.create(null);
-  if (!seg || !seg.base) return yearEnd;
+/**
+ * Replay deltas on seg.base.content and, at each year transition owned by
+ * this segment, tokenize the current snapshot directly into a Map<word,count>.
+ *
+ * Returns Map<year, Map<word, count>>. The snapshot string is never retained.
+ */
+function snapshotYearEndFreqsInSegment(seg, ownedYears) {
+  const result = new Map();
+  if (!seg || !seg.base) return result;
 
+  const owned = new Set(ownedYears);
   let cursor = seg.base.content || '';
   let currYear = yearOf(seg.base.timestamp);
-  let currContent = cursor;
+  let lastCursor = cursor;
 
   const flush = (y, content) => {
-    if (owned.has(y)) yearEnd[y] = content;
+    if (!owned.has(y)) return;
+    const freq = new Map();
+    tokenizeInto(content, freq);
+    result.set(y, freq);
   };
 
-  const deltas = seg.deltas || [];
-  for (const delta of deltas) {
+  for (const delta of (seg.deltas || [])) {
     const patched = Diff.applyPatch(cursor, delta.patch);
     if (patched !== false) cursor = patched;
     const y = yearOf(delta.timestamp);
     if (y === currYear) {
-      currContent = cursor;
+      lastCursor = cursor;
     } else {
-      flush(currYear, currContent);
+      flush(currYear, lastCursor);
       currYear = y;
-      currContent = cursor;
+      lastCursor = cursor;
     }
   }
-  flush(currYear, currContent);
+  flush(currYear, lastCursor);
 
-  return yearEnd;
+  return result;
+}
+
+/**
+ * Frequency-diff two word-count maps. Writes into `agg` keyed by "<year>:<word>".
+ * O(|oldFreq| + |newFreq|); each word is visited at most twice.
+ */
+function tallyFromFreqs(oldFreq, newFreq, year, title, agg) {
+  for (const [w, o] of oldFreq) {
+    const n = newFreq.get(w) || 0;
+    if (o === n) continue;
+    const yw = year + ':' + w;
+    let entry = agg[yw];
+    if (!entry) entry = agg[yw] = {article: title, added: 0, removed: 0};
+    if (n > o) entry.added += n - o;
+    else entry.removed += o - n;
+  }
+  for (const [w, n] of newFreq) {
+    if (oldFreq.has(w)) continue; // already handled above
+    const yw = year + ':' + w;
+    let entry = agg[yw];
+    if (!entry) entry = agg[yw] = {article: title, added: 0, removed: 0};
+    entry.added += n;
+  }
+}
+
+function loadYearFreqs(storeDir, pageId, segments, segToYears) {
+  const yearFreq = new Map();
+  let segsLoaded = 0;
+  for (const segIdStr of Object.keys(segToYears)) {
+    const segId = Number(segIdStr);
+    const seg = loadJsonKey(storeDir, `article-segment:${pageId}:${segId}`);
+    if (!seg) continue;
+    segsLoaded++;
+    const snapshots = snapshotYearEndFreqsInSegment(seg, segToYears[segIdStr]);
+    for (const [y, freq] of snapshots) yearFreq.set(y, freq);
+  }
+  return {yearFreq, segsLoaded};
+}
+
+function diffConsecutiveYears(yearFreq, activeYears, title) {
+  const agg = Object.create(null);
+  let prev = null;
+  for (const y of activeYears) {
+    const curr = yearFreq.get(y);
+    if (prev && curr) tallyFromFreqs(prev, curr, y, title, agg);
+    if (curr) prev = curr;
+  }
+  return agg;
+}
+
+function emit(agg) {
+  const out = [];
+  for (const yw of Object.keys(agg)) {
+    out.push({[yw]: agg[yw]});
+  }
+  return out;
 }
 
 function mapArticle(key, meta, ctx) {
@@ -156,7 +197,6 @@ function mapArticle(key, meta, ctx) {
 
   const pageId = String(meta.pageId);
   const title = meta.title || '';
-
   const nid = globalThis.distribution.util.id.getNID(
       globalThis.distribution.node.config);
   const storeDir = path.join(process.cwd(), 'store', nid, gid);
@@ -169,49 +209,17 @@ function mapArticle(key, meta, ctx) {
 
   const segments = manifest.segments.slice().sort((a, b) => a.segmentId - b.segmentId);
   const {segToYears, activeYears} = buildSegToYears(segments);
-  const totalSegs = segments.length;
-  const targetSegIds = Object.keys(segToYears);
 
   const t0 = Date.now();
-  console.log(`[indexer] start: ${title} (pageId=${pageId}, segments=${totalSegs}, yearsActive=${activeYears.length}, targetSegs=${targetSegIds.length})`);
+  console.log(`[indexer] start: ${title} (pageId=${pageId}, segments=${segments.length}, yearsActive=${activeYears.length}, targetSegs=${Object.keys(segToYears).length})`);
 
-  const yearEnd = Object.create(null);
-  let segsLoaded = 0;
-  for (const segIdStr of targetSegIds) {
-    const segId = Number(segIdStr);
-    const seg = loadJsonKey(storeDir, `article-segment:${pageId}:${segId}`);
-    if (!seg) {
-      console.log(`[indexer] warning: missing segment ${segId} for ${title}; skipping`);
-      continue;
-    }
-    segsLoaded++;
-    const ownedYears = segToYears[segIdStr];
-    const snapshots = snapshotYearEndsInSegment(seg, ownedYears);
-    for (const y of Object.keys(snapshots)) {
-      yearEnd[y] = snapshots[y];
-    }
-  }
-
-  const agg = Object.create(null);
-  let prev = null;
-  for (const y of activeYears) {
-    const curr = yearEnd[y];
-    if (prev !== undefined && prev !== null && curr !== undefined) {
-      tallyDiff(prev, curr, y, title, agg);
-    }
-    if (curr !== undefined) prev = curr;
-  }
-
-  const out = [];
-  for (const yw of Object.keys(agg)) {
-    const o = {};
-    o[yw] = agg[yw];
-    out.push(o);
-  }
+  const {yearFreq, segsLoaded} = loadYearFreqs(storeDir, pageId, segments, segToYears);
+  const agg = diffConsecutiveYears(yearFreq, activeYears, title);
+  const out = emit(agg);
 
   const elapsedMs = Date.now() - t0;
-  console.log(`[indexer] mapped: ${title} (pageId=${pageId}, loaded ${segsLoaded}/${totalSegs} segments, ${out.length} year:word entries, ${elapsedMs}ms)`);
+  console.log(`[indexer] mapped: ${title} (pageId=${pageId}, loaded ${segsLoaded}/${segments.length} segments, ${out.length} year:word entries, ${elapsedMs}ms)`);
   return out;
 }
 
-module.exports = {mapArticle, tok, yearOf};
+module.exports = {mapArticle, tokenizeInto, yearOf};

@@ -22,13 +22,28 @@ function printHelp() {
   `);
 }
 
+function printTopList(label, sign, items) {
+  if (!Array.isArray(items) || items.length === 0) return;
+  console.log(`    ${label}:`);
+  const nameWidth = items.reduce((w, it) => Math.max(w, (it.article || '').length), 0);
+  for (const it of items) {
+    const name = (it.article || '').padEnd(nameWidth);
+    const primary = sign === '+' ? `+${it.added}` : `-${it.removed}`;
+    const secondary = sign === '+' ? `(-${it.removed})` : `(+${it.added})`;
+    console.log(`      ${name}  ${primary} ${secondary}`);
+  }
+}
+
 function printEntry(year, word, value) {
   console.log(`\n  diff:${year}:${word}`);
-  console.log(`    totalAdded:       ${value.totalAdded}`);
-  console.log(`    totalRemoved:     ${value.totalRemoved}`);
-  console.log(`    articleCount:     ${value.articleCount}`);
+  console.log(`    totalAdded:      ${value.totalAdded}`);
+  console.log(`    totalRemoved:    ${value.totalRemoved}`);
+  console.log(`    articleCount:    ${value.articleCount}`);
   console.log(`    articlesAdded:   ${value.articlesAdded}`);
-  console.log(`    articlesRemoved: ${value.articlesRemoved}\n`);
+  console.log(`    articlesRemoved: ${value.articlesRemoved}`);
+  printTopList('topAdded', '+', value.topAdded);
+  printTopList('topRemoved', '-', value.topRemoved);
+  console.log();
 }
 
 function handleSingleYear(year, word, done) {

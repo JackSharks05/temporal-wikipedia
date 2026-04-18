@@ -82,8 +82,9 @@ function listArticleKeys(gid, callback) {
   });
 }
 
-function buildDistributedIndex(gid, callback) {
+function buildDistributedIndex(gid, callback, options) {
   if (typeof callback !== 'function') callback = () => {};
+  const topN = (options && options.topN) || 10;
 
   const service = globalThis.distribution && globalThis.distribution[gid];
   if (!service || !service.store || !service.mr) {
@@ -98,7 +99,7 @@ function buildDistributedIndex(gid, callback) {
       return callback(new Error('no articles found in store'));
     }
 
-    console.log(`[indexer] found ${articleKeys.length} articles, starting MapReduce...`);
+    console.log(`[indexer] found ${articleKeys.length} articles, starting MapReduce (topN=${topN})...`);
 
     service.mr.exec({
       keyPrefix: 'article-meta:',
@@ -107,6 +108,7 @@ function buildDistributedIndex(gid, callback) {
       mapContext: {gid},
       reduceModule: REDUCER_MODULE,
       reduceExport: 'reduceYearWord',
+      reduceContext: {topN},
     }, (mrErr, results) => {
       if (mrErr) return callback(normalizeStoreError(mrErr));
 
@@ -157,6 +159,7 @@ if (require.main === module) {
   const {connectToCluster, shutdown, getArg} = require('../../lib/clusterConnect');
 
   const gid = getArg('--gid', 'wiki');
+  const topN = parseInt(getArg('--top-n', '10'), 10);
 
   (async () => {
     let dist;
@@ -191,7 +194,7 @@ if (require.main === module) {
         console.log(`[indexer] done. ${count} year:word index entries built.`);
         await shutdown(dist);
         process.exit(0);
-      });
+      }, {topN});
     });
   })();
 }

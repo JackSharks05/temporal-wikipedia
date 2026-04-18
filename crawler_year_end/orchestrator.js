@@ -2,7 +2,7 @@ const fs = require('fs');
 const {connectToCluster, getArg, getPrivateIp, hasArg} = require('../lib/clusterConnect');
 const {normalizeTitle} = require('../storage/segmentArticle');
 
-const DEFAULT_MAX_PAGES = 1000;
+const DEFAULT_MAX_PAGES = 100000;
 const DEFAULT_MAX_QUEUE_SIZE = 1_000_000;
 const DEFAULT_CHECKPOINT_INTERVAL_MS = 30_000;
 const DEFAULT_SAVE_PATH = 'crawl_save.json';
@@ -19,10 +19,9 @@ class Orchestrator {
     this.visited = new Set();
     this.failed = new Set();
 
-    // Perf tracking
     this.startedAt = Date.now();
-    this.completedCount = 0;      // successful notifies since start (not dispatches)
-    this.recentCompletions = [];  // ring of {at, elapsedMs} for rolling stats
+    this.completedCount = 0;    
+    this.recentCompletions = []; 
 
     const restored = options.fresh ? false : this.restore();
     if (!restored) {
@@ -66,8 +65,6 @@ class Orchestrator {
 
     this.visited.add(k);
 
-    // Perf: track actual completions (not dispatches). Worker reports elapsedMs;
-    // we timestamp arrival for throughput window.
     this.completedCount += 1;
     const elapsedMs = (result && typeof result.elapsedMs === 'number') ? result.elapsedMs : null;
     this.recentCompletions.push({at: Date.now(), elapsedMs});
@@ -173,7 +170,7 @@ module.exports = {Orchestrator};
 if (require.main === module) {
   (async () => {
     const ip = getArg('--ip', getPrivateIp());
-    const port = Number(getArg('--port', '8080'));
+    const port = Number(getArg('--port', '9000'));
     const nodesFile = getArg('--nodes-file', null);
     const gid = getArg('--gid', 'wiki');
     const maxPages = Number(getArg('--max-pages', String(DEFAULT_MAX_PAGES)));

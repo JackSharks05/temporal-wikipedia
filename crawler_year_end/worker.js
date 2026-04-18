@@ -13,9 +13,9 @@ const YEARS = [
 
 const ip = getArg('--ip', getPrivateIp());
 const port = Number(getArg('--port', '8080'));
-const orchestratorIp = getArg('--orchip', '127.0.0.1');
+const orchestratorIp = getArg('--orchip', '172.31.17.78');
 const orchestratorPort = Number(getArg('--orchport', '9000'));
-const nodesFile = getArg('--nodes-file', null);
+const nodesFile = getArg('--nodes-file', 'nodes.txt');
 const COORD = {ip: orchestratorIp, port: orchestratorPort};
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

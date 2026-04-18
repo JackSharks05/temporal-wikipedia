@@ -32,7 +32,8 @@
 #git checkout -b aws 
 #git pull origin aws
 # orhcestrator :
-# 98.81.149.231
+# 54.146.243.22
+# private ip: 127.31.17.78
 
 
 

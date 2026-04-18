@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
-const os = require('os');
-const {shutdown, getArg, hasArg, parseNodesFile} = require('../lib/clusterConnect');
+const {shutdown, getArg, hasArg, parseNodesFile, getPrivateIp} = require('../lib/clusterConnect');
 const {getArticleManifest, getPageIdForTitle} = require('./wikiStore');
 const distribution = require('../distribution');
 
@@ -20,16 +19,6 @@ if (!lookup || lookup.startsWith('--')) {
 
 const gid = getArg('--gid', 'wiki');
 const isPageId = hasArg('--page-id');
-
-function getPrivateIp() {
-  const ifaces = os.networkInterfaces();
-  for (const name of Object.keys(ifaces)) {
-    for (const iface of ifaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal) return iface.address;
-    }
-  }
-  return '127.0.0.1';
-}
 
 function inspectPage(dist, pageId) {
   getArticleManifest(gid, pageId, (err, manifest) => {

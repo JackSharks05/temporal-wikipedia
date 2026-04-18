@@ -22,14 +22,56 @@
 
 /**
  * @typedef {Object} MRConfig
- * @property {Mapper} map
- * @property {Reducer} reduce
+ * @property {Mapper} [map]
+ * @property {Reducer} [reduce]
+ * @property {string} [mapModule]    absolute path to a module exporting the mapper
+ * @property {string} [mapExport]    exported name (default: 'map')
+ * @property {any}    [mapContext]   JSON-serializable ctx passed as 3rd arg
+ * @property {string} [reduceModule] absolute path to a module exporting the reducer
+ * @property {string} [reduceExport] exported name (default: 'reduce')
+ * @property {any}    [reduceContext]
  * @property {string[]} [keys]
  * @property {string} [keyPrefix]
  *
  * @typedef {Object} Mr
  * @property {(configuration: MRConfig, callback: Callback) => void} exec
  */
+
+/**
+ * Build a map/reduce shim that runs on the worker. Workers rebuild this via
+ * `new Function(...)` after serialization, which means the shim body cannot
+ * close over outer variables — everything it needs (module path, export
+ * name, ctx) must be inlined as a string literal.
+ *
+ * The shim calls `globalThis.__workerRequire` (set in distribution.js
+ * bootstrap) to load the user's module, then invokes the named export with
+ * (key, payload, ctx).
+ */
+function makeModuleShim(kind, modulePath, exportName, ctx) {
+  const modLit = JSON.stringify(modulePath);
+  const expLit = JSON.stringify(exportName);
+  const ctxLit = JSON.stringify(ctx === undefined ? null : ctx);
+  const payloadArg = kind === 'map' ? 'value' : 'values';
+  const emptyReturn = kind === 'map' ? '[]' : 'null';
+  const body = `
+    try {
+      var req = globalThis.__workerRequire;
+      if (typeof req !== 'function') {
+        throw new Error('worker missing globalThis.__workerRequire');
+      }
+      var impl = req(${modLit});
+      var fn = impl && impl[${expLit}];
+      if (typeof fn !== 'function') {
+        throw new Error('mr shim: ' + ${modLit} + ' does not export ' + ${expLit});
+      }
+      return fn(key, ${payloadArg}, ${ctxLit});
+    } catch (err) {
+      console.log('[mr:${kind}:shim] error for key=' + key + ': ' + (err && err.message));
+      return ${emptyReturn};
+    }
+  `;
+  return new Function('key', payloadArg, body);
+}
 
 /**
  * @param {Config} config
@@ -396,10 +438,11 @@ function mr(config) {
             try {
               // mr service methods are serialized and rebuilt via `new Function`
               // on workers, so they have no module-scope `require`. Use the
-              // worker-exposed require (set in scripts/startWorker.js) so we
-              // can still load fs/path during cleanup.
-              const req = globalThis.__workerRequire || (typeof require === 'function' ? require : null);
-              if (!req) throw new Error('worker missing globalThis.__workerRequire');
+              // worker-exposed require (set in distribution.js bootstrap).
+              const req = globalThis.__workerRequire;
+              if (typeof req !== 'function') {
+                throw new Error('worker missing globalThis.__workerRequire');
+              }
               const path = req('path');
               const fs = req('fs');
               const nid = globalThis.distribution.util.id.getNID(
@@ -454,13 +497,23 @@ function mr(config) {
             keys = configuration.keys;
           }
 
+          const mapFn = configuration.mapModule
+            ? makeModuleShim('map', configuration.mapModule,
+                configuration.mapExport || 'map', configuration.mapContext)
+            : configuration.map;
+
+          const reduceFn = configuration.reduceModule
+            ? makeModuleShim('reduce', configuration.reduceModule,
+                configuration.reduceExport || 'reduce', configuration.reduceContext)
+            : configuration.reduce;
+
           const state = {
             name: name,
             gid: context.gid,
             keys: keys,
             keyPrefix: configuration.keyPrefix || null,
-            map: configuration.map,
-            reduce: configuration.reduce,
+            map: mapFn,
+            reduce: reduceFn,
             coord: dist.node.config,
             mapGid: name + '-map',
             shuffleGid: name + '-shuffle',

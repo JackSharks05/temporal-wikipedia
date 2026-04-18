@@ -1,36 +1,8 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
 const distribution = require('../distribution');
 const {runDistributedCrawler} = require('../crawler/distributedCrawler');
-
-function getPrivateIp() {
-  const ifaces = os.networkInterfaces();
-  for (const name of Object.keys(ifaces)) {
-    for (const iface of ifaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal) return iface.address;
-    }
-  }
-  return '127.0.0.1';
-}
-
-function arg(name, fallback) {
-  const i = process.argv.indexOf(name);
-  if (i === -1 || i + 1 >= process.argv.length) return fallback;
-  return process.argv[i + 1];
-}
-
-function manyArgs(name) {
-  const out = [];
-  for (let i = 0; i < process.argv.length; i++) {
-    if (process.argv[i] === name && i + 1 < process.argv.length) {
-      out.push(process.argv[i + 1]);
-    }
-  }
-  return out;
-}
+const {getArg: arg, manyArgs, getPrivateIp, parseNodesFile} = require('../lib/clusterConnect');
 
 function call(fn) {
   return new Promise((resolve, reject) => {
@@ -83,18 +55,6 @@ if (!localWorkers && !nodesFile) {
 }
 
 // --- helpers ---
-
-function parseNodesFile(filePath) {
-  const resolved = path.resolve(filePath);
-  const lines = fs.readFileSync(resolved, 'utf8')
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l && !l.startsWith('#'));
-  return lines.map((line) => {
-    const [ip, portStr] = line.split(':');
-    return {ip: ip.trim(), port: Number(portStr.trim())};
-  });
-}
 
 async function spawnLocalWorkers(dist, count, ip, basePort) {
   for (let i = 0; i < count; i++) {

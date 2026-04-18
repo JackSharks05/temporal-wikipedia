@@ -6,71 +6,16 @@
  * Map:    one call per article; loads that article's segments locally,
  *         streams revisions with a year-boundary sliding window, and
  *         emits per-year per-word {added, removed} tallies. Implementation
- *         lives in ./mapper.js and is required on each worker at runtime.
+ *         lives in ./mapper.js and is invoked via MR's mapModule option.
  * Reduce: aggregates year:word tallies across all articles. Implementation
  *         in ./reducer.js.
  * Post:   writes diff:<year>:<word> entries to the store.
  */
 
-function normalizeStoreError(error) {
-  if (!error) return null;
-  if (error instanceof Error) return error;
-  if (typeof error === 'object') {
-    const values = Object.values(error).filter(Boolean);
-    if (values.length === 0) return null;
-    const first = values[0];
-    return first instanceof Error ? first : new Error(String(first));
-  }
-  return new Error(String(error));
-}
+const {normalizeError: normalizeStoreError} = require('../../lib/normalizeError');
 
-/**
- * MR map shim — a tiny function that delegates to ./mapper.js on each worker.
- *
- * Functions built with `new Function(...)` run in the GLOBAL scope on the
- * worker, which means Node's module-local `require` is NOT available. To
- * load modules, we use `globalThis.__workerRequire` — a bound copy of the
- * worker process's `require` exposed by scripts/startWorker.js. We also
- * inline `gid` as a string literal because closures are lost across
- * util.serialize's String(fn) round-trip.
- */
-function makeIndexMapper(gid) {
-  const gidLit = JSON.stringify(gid);
-  return new Function('key', 'value', `
-    try {
-      var req = globalThis.__workerRequire;
-      if (typeof req !== 'function') {
-        throw new Error('worker missing globalThis.__workerRequire; restart worker with latest startWorker.js');
-      }
-      var p = req('path');
-      var impl = req(p.join(process.cwd(), 'indexer', 'temporalDiff', 'mapper.js'));
-      return impl.mapArticle(${gidLit}, key, value);
-    } catch (err) {
-      console.log('[indexer:shim] map error for key=' + key + ': ' + (err && err.message));
-      return [];
-    }
-  `);
-}
-
-/**
- * MR reduce shim — delegates to ./reducer.js on each worker.
- */
-function makeIndexReducer() {
-  return new Function('key', 'values', `
-    try {
-      var req = globalThis.__workerRequire;
-      if (typeof req !== 'function') {
-        throw new Error('worker missing globalThis.__workerRequire; restart worker with latest startWorker.js');
-      }
-      var p = req('path');
-      var impl = req(p.join(process.cwd(), 'indexer', 'temporalDiff', 'reducer.js'));
-      return impl.reduceYearWord(key, values);
-    } catch (err) {
-      console.log('[indexer:shim] reduce error for key=' + key + ': ' + (err && err.message));
-      return null;
-    }
-  `);
-}
+const MAPPER_MODULE = require.resolve('./mapper');
+const REDUCER_MODULE = require.resolve('./reducer');
 
 /**
  * Ping every node in the group to detect dead workers before kicking off MR.
@@ -157,8 +102,11 @@ function buildDistributedIndex(gid, callback) {
 
     service.mr.exec({
       keyPrefix: 'article-meta:',
-      map: makeIndexMapper(gid),
-      reduce: makeIndexReducer(),
+      mapModule: MAPPER_MODULE,
+      mapExport: 'mapArticle',
+      mapContext: {gid},
+      reduceModule: REDUCER_MODULE,
+      reduceExport: 'reduceYearWord',
     }, (mrErr, results) => {
       if (mrErr) return callback(normalizeStoreError(mrErr));
 

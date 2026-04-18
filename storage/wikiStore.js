@@ -3,20 +3,12 @@ const {
   normalizeTitle,
   segmentArticle,
 } = require('./segmentArticle');
+const {normalizeError: normalizeStoreError} = require('../lib/normalizeError');
 
 const keyForTitle = (title)=> `article-title:${normalizeTitle(title)}`;
 const keyForMeta = (pageId)=> `article-meta:${pageId}`;
 const keyForManifest = (pageId)=> `article-manifest:${pageId}`;
 const keyForSegment = (pageId, segmentId)=> `article-segment:${pageId}:${segmentId}`;
-
-function normalizeStoreError(error) {
-  if (!error){
-    return null;
-  }
-  if (error instanceof Error) return error;
-  if (typeof error === 'object' && Object.keys(error).length === 0) return null;
-  return new Error(String(error));
-}
 
 const getStore = (gid) => globalThis.distribution[gid].store;
 

@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
-const {connectToCluster, shutdown, getArg, parseNodesFile} = require('../lib/clusterConnect');
-const os = require('os');
+const {shutdown, getArg, parseNodesFile, getPrivateIp} = require('../lib/clusterConnect');
 const distribution = require('../distribution');
 
 const PAGE_PREFIX = 'page:';
@@ -14,16 +13,6 @@ function call(fn) {
       resolve(val);
     });
   });
-}
-
-function getPrivateIp() {
-  const ifaces = os.networkInterfaces();
-  for (const name of Object.keys(ifaces)) {
-    for (const iface of ifaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal) return iface.address;
-    }
-  }
-  return '127.0.0.1';
 }
 
 (async () => {

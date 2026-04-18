@@ -71,11 +71,6 @@ function loadJsonKey(storeDir, key) {
   }
 }
 
-/**
- * Frequency-count diff. O(N+M) vs Diff.diffWords' O(N*M).
- * For each word whose count changed between oldText and newText, attribute
- * the delta to (yr, word): net increases -> added, net decreases -> removed.
- */
 function tallyDiff(oldText, newText, yr, title, agg) {
   const oldFreq = Object.create(null);
   const newFreq = Object.create(null);
@@ -95,18 +90,6 @@ function tallyDiff(oldText, newText, yr, title, agg) {
   }
 }
 
-/**
- * Build segToYears from the manifest. Each segment owns the years that END
- * inside it (so we can pick up the last revision of those years by walking
- * only that one segment's deltas). The final segment also owns its final
- * year since no later segment exists to mark a Y->Y+1 transition.
- *
- * Returns:
- *   {
- *     segToYears: {segmentId: [Y, ...]},
- *     activeYears: [Y, ...] sorted unique,
- *   }
- */
 function buildSegToYears(segments) {
   const segToYears = Object.create(null);
   const yearSet = new Set();
@@ -128,16 +111,6 @@ function buildSegToYears(segments) {
   return {segToYears, activeYears};
 }
 
-/**
- * Load one segment, replay its deltas starting from seg.base.content, and
- * snapshot the cursor at the last revision with yearOf(ts) == Y for each
- * Y in ownedYears.
- *
- * Only years in ownedYears end up in the returned yearEnd map; transient
- * per-year snapshots are dropped as soon as we move past their year, so
- * peak memory is bounded by the number of years a single segment spans
- * (typically 1-3).
- */
 function snapshotYearEndsInSegment(seg, ownedYears) {
   const owned = new Set(ownedYears);
   const yearEnd = Object.create(null);
@@ -169,9 +142,15 @@ function snapshotYearEndsInSegment(seg, ownedYears) {
   return yearEnd;
 }
 
-function mapArticle(gid, key, meta) {
+function mapArticle(key, meta, ctx) {
   if (!meta || !meta.pageId) {
     console.log(`[indexer] skipping key=${key}: meta missing or has no pageId`);
+    return [];
+  }
+
+  const gid = ctx && ctx.gid;
+  if (!gid) {
+    console.log(`[indexer] skipping key=${key}: ctx.gid missing`);
     return [];
   }
 

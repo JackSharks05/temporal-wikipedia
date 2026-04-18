@@ -90,18 +90,7 @@ function setup(options) {
   };
 }
 
-function normalizeError(err) {
-  if (!err) return null;
-  if (err instanceof Error) return err;
-  if (typeof err === 'object') {
-    let vals = Object.values(err);
-    for (let i = 0; i < vals.length; i++) {
-      if (vals[i]) return normalizeError(vals[i]);
-    }
-    return null;
-  }
-  return new Error(String(err));
-}
+const {normalizeError} = require('../lib/normalizeError');
 
 function call(fn) {
   return new Promise((resolve,reject) => {
@@ -209,122 +198,35 @@ async function recoverInflight(dist,gid,staleAfterMs) {
   return fixedCount;
 }
 
-function makeMapper(options) {
-  return new Function(`
-    return function mapPage(key,value) {
-      const fetcher = process.mainModule.require(${JSON.stringify(options.fetchPath)});
-      const store = globalThis.distribution.local.store;
-      const now = new Date().toISOString();
+const MAPPER_MODULE = require.resolve('./crawlerMapper');
+const REDUCER_MODULE = require.resolve('./crawlerReducer');
 
-      function makePage(title, depth, from, extra) {
-        return Object.assign({status:'pending',
-          retries:0,
-          claimedAt:null,
-          storedAt:null,
-          pageId:null,
-          revisionCount:0,
-          linkCount:0,
-          historyTruncated:false,
-          lastError:null,
-          title:fetcher.normalizeDisplayTitle(title),
-          depth:depth,
-          discoveredFrom:from,
-          enqueuedAt:now
-        }, extra || {});
-      }
-
-      if (!value || value.status !== 'pending') return [];
-
-      console.log('[worker] fetching: ' + value.title);
-
-      const working = Object.assign({},value,{status:'inflight',claimedAt:now,lastError:null});
-      store.put(working, {gid:${JSON.stringify(options.crawlGid)}, key:key}, () => {});
-
-      try {
-        var result = fetcher.fetchAndStoreRevisions(value.title, ${JSON.stringify(options.wikiGid)}, ${JSON.stringify(options.fetchOptions)});
-
-        store.put(makePage(value.title,value.depth,value.discoveredFrom,{
-          status:'stored',
-          retries:value.retries,
-          claimedAt:now,
-          storedAt:now,
-          pageId:result.pageId,
-          revisionCount:result.revisionCount,
-          linkCount:(result.links || []).length,
-          historyTruncated:Boolean(result.truncated)
-        }), {gid:${JSON.stringify(options.crawlGid)}, key:key}, () => {});
-
-        console.log('[worker] done: ' + value.title + ' revs=' + result.revisionCount + ' segs=' + result.segmentCount + ' links=' + (result.links || []).length);
-
-        var found = [];
-        var links = result.links || [];
-        for (var i = 0; i < links.length; i++) {
-          var title = links[i];
-          var littleObj = {};
-          littleObj[${JSON.stringify(PAGE_PREFIX)} +fetcher.getTitleKey(title)] = makePage(title, Number(value.depth || 0) + 1, value.title);
-          found.push(littleObj);
-        }
-        return found;
-      } catch (err) {
-        console.log('[worker] failed: ' + value.title + ' err=' + (err && err.message ? err.message : String(err)));
-        var tries = Number(value.retries ||0) + 1;
-        store.put(Object.assign({}, value, {status:tries < ${options.maxRetries} ? 'pending' : 'failed',
-          retries:tries,
-          claimedAt:null,
-          lastError:err && err.message ? err.message : String(err)
-        }), {gid:${JSON.stringify(options.crawlGid)}, key:key}, () => {});
-        return [];
-      }
-    };
-  `)();
-}
-
-function makeReducer(crawlGid, maxDepth) {
-  return new Function(`
-    return function reducePage(key,values) {
-      const store = globalThis.distribution.local.store;
-      let stuff = Array.isArray(values) ? values : [values];
-      stuff = stuff.filter(Boolean);
-      let current = null;
-      let best = null;
-
-      store.get({gid: ${JSON.stringify(crawlGid)},key:key},(err,val) => {
-        if (!err) current = val;
-      });
-
-      for (let i = 0; i < stuff.length; i++) {
-        let v = stuff[i];
-        if (!best || Number(v.depth || 0) < Number(best.depth || 0)) best = v;
-      }
-
-      if (!best) return null;
-      if (Number(best.depth || 0) > ${maxDepth}) return null;
-
-      if (!current) {
-        store.put(best, {gid:${JSON.stringify(crawlGid)}, key:key}, () => {});
-        return null;
-      }
-
-      if (current.status === 'pending' && Number(best.depth || 0) < Number(current.depth || 0)) {
-        store.put(Object.assign({}, current, {depth:best.depth, discoveredFrom:best.discoveredFrom, enqueuedAt:best.enqueuedAt}), {gid:${JSON.stringify(crawlGid)}, key:key}, () => {});
-      }
-      return null;
-    };
-  `)();
-}
-
-async function runRound(dist,options,batch) {
+async function runRound(dist, options, batch) {
   await call((cb) => dist[options.crawlGid].mr.exec({
-    keys:batch.map((x) => x.key),
-    map:makeMapper({
-      crawlGid:options.crawlGid, wikiGid:options.wikiGid, fetchPath:options.fetchPath,
+    keys: batch.map((x) => x.key),
+    mapModule: MAPPER_MODULE,
+    mapExport: 'mapPage',
+    mapContext: {
+      crawlGid: options.crawlGid,
+      wikiGid: options.wikiGid,
+      fetchPath: options.fetchPath,
+      pagePrefix: PAGE_PREFIX,
+      maxRetries: options.maxRetries,
       fetchOptions: {
-        timeoutMs:options.timeoutMs, userAgent:options.userAgent,
-        historyLimit:options.historyLimit, maxOutgoingLinks:options.maxOutgoingLinks,
-        language:options.language, project:options.project
-      }, maxRetries: options.maxRetries
-    }),
-    reduce: makeReducer(options.crawlGid, options.maxDepth)
+        timeoutMs: options.timeoutMs,
+        userAgent: options.userAgent,
+        historyLimit: options.historyLimit,
+        maxOutgoingLinks: options.maxOutgoingLinks,
+        language: options.language,
+        project: options.project,
+      },
+    },
+    reduceModule: REDUCER_MODULE,
+    reduceExport: 'reducePage',
+    reduceContext: {
+      crawlGid: options.crawlGid,
+      maxDepth: options.maxDepth,
+    },
   }, cb));
 }
 
@@ -395,21 +297,7 @@ async function runDistributedCrawler(options) {
 module.exports = {PAGE_PREFIX,pageKeyForTitle,runDistributedCrawler,crawlLoop};
 
 if (require.main === module) {
-  function arg(name,fallback) {
-    let i = process.argv.indexOf(name);
-    if (i === -1 || i + 1 >= process.argv.length) return fallback;
-    return process.argv[i + 1];
-  }
-
-  function manyArgs(name) {
-    let out = [];
-    for (let i = 0; i < process.argv.length; i++) {
-      if (process.argv[i] === name && i + 1 < process.argv.length){
-        out.push(process.argv[i + 1]);
-      }
-    }
-    return out;
-  }
+  const {getArg: arg, manyArgs} = require('../lib/clusterConnect');
 
   let seeds = manyArgs('--seed');
   if (!seeds.length) {

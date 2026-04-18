@@ -109,7 +109,7 @@ function startRepl() {
     _dist = await connectToCluster({
       nodesFile: getArg('--nodes-file', null),
       gid,
-      port: parseInt(getArg('--port', '7999'), 10),
+      port: parseInt(getArg('--port', '8000'), 10),
       ip: getArg('--ip', null),
     });
   } catch (err) {

@@ -63,38 +63,29 @@ function buildDistributedIndex(gid, callback, options) {
         return callback(null, 0);
       }
 
-      console.log(`[indexer] MapReduce done, writing ${results.length} index entries...`);
+      console.log(`[indexer] MapReduce done, writing ${results.length} index entries via putBatch...`);
 
-      let i = 0;
-      let written = 0;
-      const endWrite = metrics.phase('write');
-
-      function nextWrite() {
-        if (i >= results.length) {
-          endWrite();
-          console.log(`[indexer] stored ${written} definition entries`);
-          metrics.report({input: articleKeys.length, results: results.length, written});
-          return callback(null, written);
-        }
-
-        const obj = results[i++];
-        if (!obj || typeof obj !== 'object') return nextWrite();
-
+      const states = [];
+      const configs = [];
+      for (const obj of results) {
+        if (!obj || typeof obj !== 'object') continue;
         const keys = Object.keys(obj);
-        if (keys.length === 0) return nextWrite();
-
+        if (keys.length === 0) continue;
         const yearTitle = keys[0];
-        const definition = obj[yearTitle];
-
-        service.store.put(definition, {key: `definition:${yearTitle}`, gid}, (putErr) => {
-          const normalized = normalizeStoreError(putErr);
-          if (normalized) return callback(normalized);
-          written++;
-          if (written % 500 === 0) console.log(`[indexer]   wrote ${written}...`);
-          nextWrite();
-        });
+        states.push(obj[yearTitle]);
+        configs.push({key: `definition:${yearTitle}`, gid});
       }
-      nextWrite();
+
+      const endWrite = metrics.phase('write');
+      service.store.putBatch(states, configs, (putErr, res) => {
+        endWrite();
+        const normalized = normalizeStoreError(putErr);
+        if (normalized) return callback(normalized);
+        const written = (res && res.written) || 0;
+        console.log(`[indexer] stored ${written} definition entries`);
+        metrics.report({input: articleKeys.length, results: results.length, written});
+        return callback(null, written);
+      });
     });
   });
 }

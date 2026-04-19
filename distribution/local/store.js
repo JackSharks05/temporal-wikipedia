@@ -227,4 +227,82 @@ function append(state, configuration, callback) {
   }
 }
 
-module.exports = {put, get, del, append};
+/**
+ * @param {any[]} states
+ * @param {SimpleConfig[]} configurations
+ * @param {Callback} callback
+ */
+function putBatch(states, configurations, callback) {
+  callback = callback || function() {};
+  if (!Array.isArray(states) || !Array.isArray(configurations) ||
+      states.length !== configurations.length) {
+    return callback(new Error('store.putBatch: states and configurations must be parallel arrays'));
+  }
+
+  try {
+    let written = 0;
+    for (let i = 0; i < states.length; i++) {
+      const {key: rawKey, gid} = parseConfig(configurations[i]);
+      const key = rawKey === null ? generateKey(states[i]) : rawKey;
+      const storeDir = getStoreDir(gid);
+      ensureDir(storeDir);
+      const filepath = path.join(storeDir, keyToFilename(key));
+      const serialized = globalThis.distribution.util.serialize({key, value: states[i]});
+      fs.writeFileSync(filepath, serialized, 'utf8');
+      written++;
+    }
+    return callback(null, {written});
+  } catch (err) {
+    return callback(err instanceof Error ? err : new Error(String(err)));
+  }
+}
+
+/**
+ *
+ * @param {any[]} states
+ * @param {SimpleConfig[]} configurations
+ * @param {Callback} callback
+ */
+function appendBatch(states, configurations, callback) {
+  callback = callback || function() {};
+  if (!Array.isArray(states) || !Array.isArray(configurations) ||
+      states.length !== configurations.length) {
+    return callback(new Error('store.appendBatch: states and configurations must be parallel arrays'));
+  }
+
+  try {
+    const grouped = Object.create(null);
+    for (let i = 0; i < states.length; i++) {
+      const {key, gid} = parseConfig(configurations[i]);
+      if (key === null) {
+        return callback(new Error('store.appendBatch: missing key at index ' + i));
+      }
+      const k = gid + '\0' + key;
+      if (!grouped[k]) grouped[k] = {gid, key, values: []};
+      grouped[k].values.push(states[i]);
+    }
+
+    let appended = 0;
+    for (const {gid, key, values} of Object.values(grouped)) {
+      const storeDir = getStoreDir(gid);
+      ensureDir(storeDir);
+      const filepath = path.join(storeDir, keyToFilename(key));
+
+      let existing = [];
+      if (fs.existsSync(filepath)) {
+        const content = fs.readFileSync(filepath, 'utf8');
+        const data = globalThis.distribution.util.deserialize(content);
+        existing = Array.isArray(data.value) ? data.value : [data.value];
+      }
+      for (const v of values) existing.push(v);
+      const serialized = globalThis.distribution.util.serialize({key, value: existing});
+      fs.writeFileSync(filepath, serialized, 'utf8');
+      appended += values.length;
+    }
+    return callback(null, {appended});
+  } catch (err) {
+    return callback(err instanceof Error ? err : new Error(String(err)));
+  }
+}
+
+module.exports = {put, get, del, append, putBatch, appendBatch};

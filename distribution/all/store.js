@@ -276,7 +276,81 @@ function store(config) {
     });
   }
  
-  return {get, put, append, del, reconf};
+
+ function dispatchBatch(method, resultField, states, configurations, callback) {
+    if (!Array.isArray(states) || !Array.isArray(configurations) ||
+        states.length !== configurations.length) {
+      return callback(new Error('store.' + method + ': states and configurations must be parallel arrays'));
+    }
+    if (states.length === 0) return callback(null, {[resultField]: 0});
+
+    getLocal().groups.get(context.gid, (e, /** @type {Object.<string, Node>} */ group) => {
+      if (e) return callback(e);
+
+      const nids = Object.values(group).map((n) => util.id.getNID(n));
+      const nidToNode = {};
+      for (const node of Object.values(group)) nidToNode[util.id.getNID(node)] = node;
+
+      /** @type {Object.<string, {node: Node, states: any[], configurations: Object[]}>} */
+      const batches = Object.create(null);
+
+      for (let i = 0; i < states.length; i++) {
+        const cfg = configurations[i];
+        const key = (cfg && typeof cfg === 'object' && typeof cfg.key === 'string') ? cfg.key : null;
+        if (!key) {
+          return callback(new Error('store.' + method + ': each config must have a string key'));
+        }
+        const gid = (cfg && cfg.gid) || context.gid;
+        const placementKey = getPlacementKey(key);
+        const nid = context.hash(util.id.getID(placementKey), nids);
+        const node = nidToNode[nid];
+        if (!node) {
+          return callback(new Error('store.' + method + ': no node for key ' + key));
+        }
+        const sid = util.id.getSID(node);
+        if (!batches[sid]) batches[sid] = {node, states: [], configurations: []};
+        batches[sid].states.push(states[i]);
+        batches[sid].configurations.push({key, gid});
+      }
+
+      const groups = Object.values(batches);
+      let outstanding = groups.length;
+      let total = 0;
+      /** @type {Error|null} */
+      let firstErr = null;
+
+      for (const g of groups) {
+        const remote = {node: g.node, service: 'store', method};
+        getLocal().comm.send([g.states, g.configurations], remote, (err, res) => {
+          if (err && !firstErr) firstErr = err;
+          if (res && typeof res[resultField] === 'number') total += res[resultField];
+          if (--outstanding === 0) {
+            callback(firstErr, firstErr ? null : {[resultField]: total});
+          }
+        });
+      }
+    });
+  }
+
+  /**
+   * @param {any[]} states
+   * @param {Object[]} configurations
+   * @param {Callback} callback
+   */
+  function putBatch(states, configurations, callback) {
+    return dispatchBatch('putBatch', 'written', states, configurations, callback);
+  }
+
+  /**
+   * @param {any[]} states
+   * @param {Object[]} configurations
+   * @param {Callback} callback
+   */
+  function appendBatch(states, configurations, callback) {
+    return dispatchBatch('appendBatch', 'appended', states, configurations, callback);
+  }
+
+  return {get, put, append, del, reconf, putBatch, appendBatch};
 }
 
 module.exports = store;

@@ -64,36 +64,28 @@ function buildDistributedIndex(gid, callback, options) {
         return callback(null, 0);
       }
 
-      console.log(`[indexer] MapReduce done, writing results...`);
+      console.log(`[indexer] MapReduce done, writing results via putBatch...`);
 
-      const entries = [];
+      const states = [];
+      const configs = [];
       for (const obj of results) {
         if (!obj || typeof obj !== 'object') continue;
-        for (const [k, v] of Object.entries(obj)) entries.push([k, v]);
-      }
-
-      let i = 0;
-      let written = 0;
-      const endWrite = metrics.phase('write');
-
-      function nextWrite() {
-        if (i >= entries.length) {
-          endWrite();
-          console.log(`[indexer] stored ${written} birth/death entries`);
-          metrics.report({input: diffKeys.length, results: results.length, written});
-          return callback(null, written);
+        for (const [k, v] of Object.entries(obj)) {
+          states.push(v);
+          configs.push({key: k, gid});
         }
-
-        const [key, value] = entries[i++];
-        service.store.put(value, {key, gid}, (putErr) => {
-          const normalized = normalizeStoreError(putErr);
-          if (normalized) return callback(normalized);
-          written++;
-          if (written % 500 === 0) console.log(`[indexer]   wrote ${written}...`);
-          nextWrite();
-        });
       }
-      nextWrite();
+
+      const endWrite = metrics.phase('write');
+      service.store.putBatch(states, configs, (putErr, res) => {
+        endWrite();
+        const normalized = normalizeStoreError(putErr);
+        if (normalized) return callback(normalized);
+        const written = (res && res.written) || 0;
+        console.log(`[indexer] stored ${written} birth/death entries`);
+        metrics.report({input: diffKeys.length, results: results.length, written});
+        return callback(null, written);
+      });
     });
   });
 }

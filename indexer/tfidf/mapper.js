@@ -43,6 +43,7 @@ function frequency(text) {
 }
 
 function mapper(key, data) {
+  if (!data || !data.years) return [];
   const title = data.title;
   const activeYears = Object.keys(data.years);
   const results = [];

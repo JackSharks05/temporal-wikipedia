@@ -8,6 +8,7 @@ const {
   getDeathEntry,
   getDefinitionEntry,
 } = require('./queryIndex');
+const {search} = require('./search');
 
 const gid = getArg('--gid', 'wiki');
 
@@ -25,6 +26,7 @@ function printHelp() {
     birth <year>                  Top words "born" (added) that year
     death <year>                  Top words that faded (removed) that year
     def <year> <title>            First-sentence definition of a title at year
+    search <year> <word...>       TF-IDF search across articles in that year
     help                          Show this message
     exit / quit                   Exit
   `);
@@ -113,6 +115,24 @@ function handleDefinition(year, title, done) {
   });
 }
 
+function handleSearch(year, terms, done) {
+  search(terms, year, gid, (err, results) => {
+    if (err) {
+      console.log(`  Search error: ${err.message}`);
+    } else if (!results || results.length === 0) {
+      console.log(`  No matches for [${terms.join(', ')}] in ${year}`);
+    } else {
+      console.log(`\n  search ${year} [${terms.join(' ')}]:`);
+      const nameWidth = results.reduce((w, r) => Math.max(w, r.title.length), 0);
+      for (const r of results) {
+        console.log(`    ${r.title.padEnd(nameWidth)}  tfidf=${r.tfidf.toFixed(4)}  matches=${r.matches}/${terms.length}`);
+      }
+      console.log();
+    }
+    done();
+  });
+}
+
 function handleRangeDiff(start, end, word, done) {
   let curYear = start;
   let found = 0;
@@ -152,6 +172,12 @@ function dispatch(input, done) {
 
   const def = input.match(/^def\s+(\d{4})\s+(.+)$/i);
   if (def) return handleDefinition(def[1], def[2].trim(), done);
+
+  const searchMatch = input.match(/^search\s+(\d{4})\s+(.+)$/i);
+  if (searchMatch) {
+    const terms = searchMatch[2].trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return handleSearch(searchMatch[1], terms, done);
+  }
 
   const range = input.match(/^(\d{4})\s*-\s*(\d{4})\s+(\S+)$/);
   if (range) {

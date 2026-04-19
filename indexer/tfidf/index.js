@@ -10,7 +10,7 @@ const REDUCER_MODULE = require.resolve('./reducer');
 function buildTfIdfIndex(gid, callback, options) {
   if (typeof callback !== 'function') callback = () => {};
   const articleCount = (options && options.articleCount) || 2400;
-  const cap = (options && options.cap) || 100;
+  const cap = (options && options.cap) || 25;
 
   const service = globalThis.distribution && globalThis.distribution[gid];
   if (!service || !service.store || !service.mr) {
@@ -29,37 +29,15 @@ function buildTfIdfIndex(gid, callback, options) {
     reduceModule: REDUCER_MODULE,
     reduceExport: 'reducer',
     reduceContext: {articleCount, cap},
-  }, (mrErr, results) => {
+    storeResults: true,
+  }, (mrErr, result) => {
     endMR();
     if (mrErr) return callback(normalizeStoreError(mrErr));
 
-    if (!results || results.length === 0) {
-      console.log('[indexer] MapReduce produced no results');
-      metrics.report({results: 0, written: 0});
-      return callback(null, 0);
-    }
-
-    const entries = [];
-    for (const obj of results) {
-      if (!obj || typeof obj !== 'object') continue;
-      const keys = Object.keys(obj);
-      if (keys.length === 0) continue;
-      const k = keys[0];
-      entries.push({key: k, value: obj[k]});
-    }
-
-    console.log(`[indexer] MapReduce done, writing ${entries.length} entries...`);
-    const endWrite = metrics.phase('write');
-
-    concurrentEach(entries, (e, cb) => {
-      service.store.put(e.value, {key: e.key, gid}, (putErr) => cb(normalizeStoreError(putErr)));
-    }, (err, written) => {
-      endWrite();
-      if (err) return callback(err);
-      console.log(`[indexer] stored ${written} tfidf entries`);
-      metrics.report({results: results.length, written});
-      return callback(null, written);
-    });
+    const written = (result && result.written) || 0;
+    console.log(`[indexer] stored ${written} tfidf entries (written during reduce)`);
+    metrics.report({written});
+    return callback(null, written);
   });
 }
 
@@ -69,7 +47,7 @@ if (require.main === module) {
   const {connectToCluster, shutdown, getArg} = require('../../lib/clusterConnect');
   const gid = getArg('--gid', 'wiki');
   const articleCount = parseInt(getArg('--article-count', '2400'), 10);
-  const cap = parseInt(getArg('--cap', '100'), 10);
+  const cap = parseInt(getArg('--cap', '25'), 10);
 
   (async () => {
     let dist;

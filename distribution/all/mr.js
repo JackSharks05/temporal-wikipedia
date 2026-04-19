@@ -32,6 +32,9 @@
  * @property {any}    [reduceContext]
  * @property {string[]} [keys]
  * @property {string} [keyPrefix]
+ * @property {boolean} [storeResults] if true, workers write reduced outputs directly
+ *   to the distributed store (keyed by the reducer's output key) instead of shipping
+ *   them back to the coordinator. Avoids OOM on large reduce outputs.
  *
  * @typedef {Object} Mr
  * @property {(configuration: MRConfig, callback: Callback) => void} exec
@@ -106,6 +109,8 @@ function mr(config) {
         phase: 'map',
         count: 0,
         results: [],
+        written: 0,
+        storeResults: !!configuration.storeResults,
       };
 
       const service = {
@@ -136,6 +141,9 @@ function mr(config) {
           if (core && core.phase === 'reduce' && Array.isArray(core.out)) {
             job.results = job.results.concat(core.out);
           }
+          if (core && core.phase === 'reduce' && typeof core.written === 'number') {
+            job.written = (job.written || 0) + core.written;
+          }
 
           job.count += 1;
 
@@ -162,8 +170,11 @@ function mr(config) {
 
           const done = job.cb;
           const out = job.results.slice();
+          const written = job.written || 0;
+          const finalResult = job.storeResults ? {written} : out;
 
-          console.log('[mr:' + name + '] all workers finished reduce, cleaning up (' + out.length + ' results)');
+          console.log('[mr:' + name + '] all workers finished reduce, cleaning up (' +
+              (job.storeResults ? written + ' written' : out.length + ' results') + ')');
 
           globalThis.distribution[job.gid].comm.send(
               [name],
@@ -172,7 +183,7 @@ function mr(config) {
                 globalThis.distribution[job.gid].routes.rem(name, () => {
                   globalThis.distribution.local.routes.rem(name, () => {
                     delete globalThis.__mr[name];
-                    return done(null, out);
+                    return done(null, finalResult);
                   });
                 });
               },
@@ -355,11 +366,16 @@ function mr(config) {
           }
 
           const out = [];
+          let written = 0;
+          const storeResults = !!job.storeResults;
 
           const finish = () => {
-            console.log('[mr] reduce done: ' + out.length + ' reduced entries emitted');
+            const msg = storeResults
+              ? 'wrote ' + written + ' entries directly to store'
+              : out.length + ' reduced entries emitted';
+            console.log('[mr] reduce done: ' + msg);
             return dist.local.comm.send(
-                [name, {phase: 'reduce', out: out}],
+                [name, {phase: 'reduce', out: out, written: written}],
                 {node: job.coord, service: name, method: 'notify'},
                 () => cb(null, out),
             );
@@ -372,6 +388,8 @@ function mr(config) {
             }
 
             console.log('[mr] reduce: ' + reduceKeys.length + ' keys to reduce');
+
+            const toWrite = [];
 
             for (let i = 0; i < reduceKeys.length; i++) {
               if (i > 0 && i % 500 === 0) {
@@ -395,14 +413,53 @@ function mr(config) {
                 reduced = null;
               }
 
-              if (Array.isArray(reduced)) {
-                for (const x of reduced) out.push(x);
-              } else if (reduced && typeof reduced === 'object') {
-                out.push(reduced);
+              const emissions = Array.isArray(reduced)
+                ? reduced
+                : (reduced && typeof reduced === 'object' ? [reduced] : []);
+
+              if (!storeResults) {
+                for (const x of emissions) out.push(x);
+                continue;
+              }
+
+              for (const obj of emissions) {
+                if (!obj || typeof obj !== 'object') continue;
+                for (const k of Object.keys(obj)) {
+                  toWrite.push([k, obj[k]]);
+                }
               }
             }
 
-            return finish();
+            if (!storeResults || toWrite.length === 0) {
+              return finish();
+            }
+
+            console.log('[mr] reduce: writing ' + toWrite.length + ' entries directly to store');
+
+            const CONC = 64;
+            let idx = 0;
+            let inFlight = 0;
+            let done = false;
+
+            const pump = () => {
+              while (!done && inFlight < CONC && idx < toWrite.length) {
+                const [k, v] = toWrite[idx++];
+                inFlight++;
+                dist[job.gid].store.put(v, {key: k, gid: job.gid}, () => {
+                  inFlight--;
+                  written++;
+                  if (written % 5000 === 0) {
+                    console.log('[mr] reduce write progress: ' + written + '/' + toWrite.length);
+                  }
+                  if (idx >= toWrite.length && inFlight === 0 && !done) {
+                    done = true;
+                    return finish();
+                  }
+                  pump();
+                });
+              }
+            };
+            pump();
           });
         },
 
@@ -490,6 +547,7 @@ function mr(config) {
             coord: dist.node.config,
             mapGid: name + '-map',
             shuffleGid: name + '-shuffle',
+            storeResults: !!configuration.storeResults,
           };
 
           dist[context.gid].comm.send(

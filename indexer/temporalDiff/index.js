@@ -6,7 +6,6 @@
 
 const {normalizeError: normalizeStoreError} = require('../../lib/normalizeError');
 const {createMetrics} = require('../../lib/indexerMetrics');
-const {concurrentEach} = require('../../lib/concWrite');
 
 const MAPPER_MODULE = require.resolve('./mapper');
 const REDUCER_MODULE = require.resolve('./reducer');
@@ -32,37 +31,15 @@ function buildDistributedIndex(gid, callback, options) {
     reduceModule: REDUCER_MODULE,
     reduceExport: 'reduceYearWord',
     reduceContext: {topN},
-  }, (mrErr, results) => {
+    storeResults: true,
+  }, (mrErr, result) => {
     endMR();
     if (mrErr) return callback(normalizeStoreError(mrErr));
 
-    if (!results || results.length === 0) {
-      console.log('[indexer] MapReduce produced no results');
-      metrics.report({results: 0, written: 0});
-      return callback(null, 0);
-    }
-
-    const entries = [];
-    for (const obj of results) {
-      if (!obj || typeof obj !== 'object') continue;
-      const keys = Object.keys(obj);
-      if (keys.length === 0) continue;
-      const yw = keys[0];
-      entries.push({key: `diff:${yw}`, value: obj[yw]});
-    }
-
-    console.log(`[indexer] MapReduce done, writing ${entries.length} entries...`);
-    const endWrite = metrics.phase('write');
-
-    concurrentEach(entries, (e, cb) => {
-      service.store.put(e.value, {key: e.key, gid}, (putErr) => cb(normalizeStoreError(putErr)));
-    }, (err, written) => {
-      endWrite();
-      if (err) return callback(err);
-      console.log(`[indexer] stored ${written} diff:year:word entries`);
-      metrics.report({results: results.length, written});
-      return callback(null, written);
-    });
+    const written = (result && result.written) || 0;
+    console.log(`[indexer] stored ${written} diff:year:word entries (written during reduce)`);
+    metrics.report({written});
+    return callback(null, written);
   });
 }
 

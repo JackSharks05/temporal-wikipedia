@@ -1,6 +1,3 @@
-/**
- * temporalDiff reducer — called once per shuffle key "<year>:<word>".
- */
 
 const DEFAULT_TOP_N = 10;
 
@@ -35,7 +32,7 @@ function reduceYearWord(key, values, ctx) {
   }
 
   return {
-    [key]: {
+    [`diff:${key}`]: {
       totalAdded,
       totalRemoved,
       articleCount: vals.length,

@@ -42,17 +42,7 @@ function frequency(text) {
   return freq;
 }
 
-let DEBUG_FIRST = true;
-
 function mapper(key, data) {
-  if (DEBUG_FIRST) {
-    DEBUG_FIRST = false;
-    console.log('[tfidf:mapper] FIRST CALL key=' + key +
-        ' dataType=' + typeof data +
-        ' hasYears=' + !!(data && data.years) +
-        ' yearKeys=' + (data && data.years ? Object.keys(data.years).length : 'n/a') +
-        ' title=' + (data && data.title));
-  }
   if (!data || !data.years) return [];
   const title = data.title;
   const activeYears = Object.keys(data.years);
@@ -71,8 +61,3 @@ function mapper(key, data) {
 }
 
 module.exports = {mapper};
-
-
-if (require.main == moduel) {
-    print(mapper())
-}

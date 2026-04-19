@@ -2,7 +2,12 @@
 
 const readline = require('readline');
 const {connectToCluster, shutdown, getArg} = require('../lib/clusterConnect');
-const {getDiffEntry} = require('./queryIndex');
+const {
+  getDiffEntry,
+  getBirthEntry,
+  getDeathEntry,
+  getDefinitionEntry,
+} = require('./queryIndex');
 
 const gid = getArg('--gid', 'wiki');
 
@@ -17,6 +22,9 @@ function printHelp() {
   Commands:
     <year> <word>                 Diff stats for a word in a year
     <startYear>-<endYear> <word>  Stats for a word across a year range
+    birth <year>                  Top words "born" (added) that year
+    death <year>                  Top words that faded (removed) that year
+    def <year> <title>            First-sentence definition of a title at year
     help                          Show this message
     exit / quit                   Exit
   `);
@@ -46,9 +54,23 @@ function printEntry(year, word, value) {
   console.log();
 }
 
-function handleSingleYear(year, word, done) {
+function printWordRanking(label, year, items, field, articleField) {
+  console.log(`\n  ${label}:${year}`);
+  if (!Array.isArray(items) || items.length === 0) {
+    console.log('    (empty)\n');
+    return;
+  }
+  const wordWidth = items.reduce((w, it) => Math.max(w, (it.word || '').length), 0);
+  for (const it of items) {
+    const word = (it.word || '').padEnd(wordWidth);
+    console.log(`      ${word}  ${it[field]}  (${it[articleField]} articles)`);
+  }
+  console.log();
+}
+
+function handleSingleYearDiff(year, word, done) {
   getDiffEntry(gid, year, word, (err, value) => {
-    if (err) {
+    if (err || !value) {
       console.log(`  Not found: diff:${year}:${word}`);
     } else {
       printEntry(year, word, value);
@@ -57,12 +79,46 @@ function handleSingleYear(year, word, done) {
   });
 }
 
-function handleRange(start, end, word, done) {
+function handleBirth(year, done) {
+  getBirthEntry(gid, year, (err, value) => {
+    if (err || !value) {
+      console.log(`  Not found: birth:${year}`);
+    } else {
+      printWordRanking('birth', year, value, 'totalAdded', 'articlesAdded');
+    }
+    done();
+  });
+}
+
+function handleDeath(year, done) {
+  getDeathEntry(gid, year, (err, value) => {
+    if (err || !value) {
+      console.log(`  Not found: death:${year}`);
+    } else {
+      printWordRanking('death', year, value, 'totalRemoved', 'articlesRemoved');
+    }
+    done();
+  });
+}
+
+function handleDefinition(year, title, done) {
+  getDefinitionEntry(gid, year, title, (err, value) => {
+    if (err || !value) {
+      console.log(`  Not found: definition:${year}:${title}`);
+    } else {
+      console.log(`\n  definition:${year}:${title}`);
+      console.log(`    ${value}\n`);
+    }
+    done();
+  });
+}
+
+function handleRangeDiff(start, end, word, done) {
   let curYear = start;
   let found = 0;
   console.log();
 
-  (function next() {
+  function next() {
     if (curYear > end) {
       if (found === 0) console.log(`  No data for "${word}" in ${start}\u2013${end}.`);
       console.log();
@@ -76,8 +132,11 @@ function handleRange(start, end, word, done) {
       curYear++;
       next();
     });
-  })();
+  };
+  next();
 }
+
+
 
 function dispatch(input, done) {
   if (input === 'help') {
@@ -85,17 +144,26 @@ function dispatch(input, done) {
     return done();
   }
 
+  const birth = input.match(/^birth\s+(\d{4})$/i);
+  if (birth) return handleBirth(birth[1], done);
+
+  const death = input.match(/^death\s+(\d{4})$/i);
+  if (death) return handleDeath(death[1], done);
+
+  const def = input.match(/^def\s+(\d{4})\s+(.+)$/i);
+  if (def) return handleDefinition(def[1], def[2].trim(), done);
+
   const range = input.match(/^(\d{4})\s*-\s*(\d{4})\s+(\S+)$/);
   if (range) {
-    return handleRange(+range[1], +range[2], range[3].toLowerCase(), done);
+    return handleRangeDiff(+range[1], +range[2], range[3].toLowerCase(), done);
   }
 
   const single = input.match(/^(\d{4})\s+(\S+)$/);
   if (single) {
-    return handleSingleYear(single[1], single[2].toLowerCase(), done);
+    return handleSingleYearDiff(single[1], single[2].toLowerCase(), done);
   }
 
-  console.log('  Usage: <year> <word>  or  <startYear>-<endYear> <word>');
+  console.log('  Unknown command. Type "help" for options.');
   done();
 }
 

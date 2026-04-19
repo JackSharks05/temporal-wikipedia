@@ -7,7 +7,7 @@
 # Usage:  bash scripts/checkWorkers.sh
 
 KEY="../csci1380.pem"
-IP_FILE="${1:-worker_ips.txt}"
+IP_FILE="${1:-aws_ips.txt}"
 
 if [[ ! -f "$IP_FILE" ]]; then
   echo "Error: $IP_FILE not found."

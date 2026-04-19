@@ -7,7 +7,7 @@
 #         bash scripts/workerStatus.sh 20          # last 20 lines per worker
 
 KEY="../csci1380.pem"
-IP_FILE="worker_ips.txt"
+IP_FILE="aws_ips.txt"
 LINES="${1:-5}"
 
 if [[ ! -f "$IP_FILE" ]]; then

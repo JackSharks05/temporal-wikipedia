@@ -9,9 +9,6 @@ const {normalizeError: normalizeStoreError} = require('../../lib/normalizeError'
 const MAPPER_MODULE = require.resolve('./mapper');
 const REDUCER_MODULE = require.resolve('./reducer');
 
-/**
- * List all article-meta keys in the store (one per article).
- */
 function listArticleKeys(gid, callback) {
   const service = globalThis.distribution && globalThis.distribution[gid];
   if (!service || !service.store) {
@@ -31,7 +28,7 @@ function listArticleKeys(gid, callback) {
 
 function buildDistributedIndex(gid, callback, options) {
   if (typeof callback !== 'function') callback = () => {};
-  const topN = (options && options.topN) || 10;
+  const topN = (options && options.topN) || 3;
 
   const service = globalThis.distribution && globalThis.distribution[gid];
   if (!service || !service.store || !service.mr) {
@@ -99,6 +96,7 @@ function buildDistributedIndex(gid, callback, options) {
 
 module.exports = {
   buildDistributedIndex,
+  listArticleKeys
 };
 
 if (require.main === module) {

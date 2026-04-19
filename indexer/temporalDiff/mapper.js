@@ -31,8 +31,6 @@ function yearOf(ts) {
 }
 
 /**
- * Accumulate token counts from `text` directly into `freq`. No intermediate
- * array allocation. Filters stop-words and tokens shorter than 3 chars inline.
  */
 function tokenizeInto(text, freq) {
   if (!text) return freq;
@@ -60,11 +58,7 @@ function loadJsonKey(storeDir, key) {
   }
 }
 
-/**
- * Produce {segToYears, activeYears} where segToYears maps segmentId → array
- * of years that segment owns. A year is "owned" where its year-end revision
- * lives. Final segment also owns its own end year.
- */
+
 function buildSegToYears(segments) {
   const segToYears = Object.create(null);
   const yearSet = new Set();
@@ -200,7 +194,6 @@ function mapArticle(key, meta, ctx) {
   const nid = globalThis.distribution.util.id.getNID(
       globalThis.distribution.node.config);
   const storeDir = path.join(process.cwd(), 'store', nid, gid);
-
   const manifest = loadJsonKey(storeDir, `article-manifest:${pageId}`);
   if (!manifest || !Array.isArray(manifest.segments) || manifest.segments.length === 0) {
     console.log(`[indexer] no manifest for ${title} (pageId=${pageId}); skipping`);

@@ -452,8 +452,6 @@ function mr(config) {
             }
           }
 
-          // Drop the in-memory shuffle partition so intermediate data does
-          // not accumulate across MR jobs on a long-running worker.
           if (job && job.shuffleGid) {
             try {
               const mem = globalThis.distribution.local.mem;

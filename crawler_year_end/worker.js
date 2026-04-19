@@ -69,7 +69,7 @@ async function runWorker(dist) {
           {node: COORD, service: ORCHESTRATOR_SERVICE_NAME, method: 'notify'},
       );
     } catch (err) {
-      console.log(`[worker] notify RPC failed for ${title}: ${err.message}; coord will reclaim via in-flight sweep`);
+      console.log(`[worker] notify RPC failed for ${title}: ${err.message};`);
     }
   }
 }

@@ -180,16 +180,6 @@ if (require.main === module) {
 
     if (!seedFile) {
       console.error('Usage: node crawler_year_end/orchestrator.js --seeds <file> --nodes-file <nodes.txt> [options]');
-      console.error('');
-      console.error('  --seeds FILE        path to newline-separated seed titles');
-      console.error('  --nodes-file FILE   cluster nodes file (required)');
-      console.error('  --ip IP             coord bind ip (default: private ip)');
-      console.error('  --port PORT         coord bind port (default: 9000)');
-      console.error('  --gid GID           wiki gid (default: wiki)');
-      console.error('  --max-pages N       stop after N articles stored (default: 1000)');
-      console.error('  --save FILE         checkpoint path (default: crawl_save.json)');
-      console.error('  --checkpoint-ms N   checkpoint interval ms (default: 30000)');
-      console.error('  --fresh             ignore existing checkpoint, restart');
       process.exit(1);
     }
 

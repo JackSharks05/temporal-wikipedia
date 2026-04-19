@@ -63,22 +63,22 @@ function runBenchmark(name, makeCall, callback) {
 }
 
 const tests = [
-  {
-    name: 'diff',
-    makeCall: (cb) => getDiffEntry(gid, pick(YEARS), pick(WORDS), cb),
-  },
-  {
-    name: 'birth',
-    makeCall: (cb) => getBirthEntry(gid, pick(YEARS), cb),
-  },
-  {
-    name: 'death',
-    makeCall: (cb) => getDeathEntry(gid, pick(YEARS), cb),
-  },
-  {
-    name: 'definition',
-    makeCall: (cb) => getDefinitionEntry(gid, pick(YEARS), pick(TITLES), cb),
-  },
+//   {
+//     name: 'diff',
+//     makeCall: (cb) => getDiffEntry(gid, pick(YEARS), pick(WORDS), cb),
+//   },
+//   {
+//     name: 'birth',
+//     makeCall: (cb) => getBirthEntry(gid, pick(YEARS), cb),
+//   },
+//   {
+//     name: 'death',
+//     makeCall: (cb) => getDeathEntry(gid, pick(YEARS), cb),
+//   },
+//   {
+//     name: 'definition',
+//     makeCall: (cb) => getDefinitionEntry(gid, pick(YEARS), pick(TITLES), cb),
+//   },
   {
     name: 'search (1 word)',
     makeCall: (cb) => search([pick(WORDS)], pick(YEARS), gid, cb),

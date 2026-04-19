@@ -10,7 +10,7 @@ const REDUCER_MODULE = require.resolve('./reducer');
 function buildTfIdfIndex(gid, callback, options) {
   if (typeof callback !== 'function') callback = () => {};
   const articleCount = (options && options.articleCount) || 2400;
-  const cap = (options && options.cap) || 10000;
+  const cap = (options && options.cap) || 100;
 
   const service = globalThis.distribution && globalThis.distribution[gid];
   if (!service || !service.store || !service.mr) {
@@ -69,7 +69,7 @@ if (require.main === module) {
   const {connectToCluster, shutdown, getArg} = require('../../lib/clusterConnect');
   const gid = getArg('--gid', 'wiki');
   const articleCount = parseInt(getArg('--article-count', '2400'), 10);
-  const cap = parseInt(getArg('--cap', '10000'), 10);
+  const cap = parseInt(getArg('--cap', '100'), 10);
 
   (async () => {
     let dist;

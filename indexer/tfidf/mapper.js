@@ -60,3 +60,8 @@ function mapper(key, data) {
 }
 
 module.exports = {mapper};
+
+
+if (require.main == moduel) {
+    print(mapper())
+}

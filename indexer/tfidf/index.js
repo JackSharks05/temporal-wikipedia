@@ -7,27 +7,28 @@ const {concurrentEach} = require('../../lib/concWrite');
 const MAPPER_MODULE = require.resolve('./mapper');
 const REDUCER_MODULE = require.resolve('./reducer');
 
-function buildDistributedIndex(gid, callback, options) {
+function buildTfIdfIndex(gid, callback, options) {
   if (typeof callback !== 'function') callback = () => {};
-  const topN = (options && options.topN) || 10;
+  const articleCount = (options && options.articleCount) || 2400;
+  const cap = (options && options.cap) || 10000;
 
   const service = globalThis.distribution && globalThis.distribution[gid];
   if (!service || !service.store || !service.mr) {
     return callback(new Error(`group not found or missing mr: ${gid}`));
   }
 
-  const metrics = createMetrics('birth');
-  console.log(`[indexer] starting MapReduce (topN=${topN})...`);
+  const metrics = createMetrics('tfidf');
+  console.log(`[indexer] starting MapReduce (articleCount=${articleCount}, cap=${cap})...`);
 
   const endMR = metrics.phase('mapreduce');
   service.mr.exec({
-    keyPrefix: 'diff:',
+    keyPrefix: 'article-year-history:',
     mapModule: MAPPER_MODULE,
     mapExport: 'mapper',
     mapContext: {gid},
     reduceModule: REDUCER_MODULE,
     reduceExport: 'reducer',
-    reduceContext: {topN},
+    reduceContext: {articleCount, cap},
   }, (mrErr, results) => {
     endMR();
     if (mrErr) return callback(normalizeStoreError(mrErr));
@@ -41,7 +42,10 @@ function buildDistributedIndex(gid, callback, options) {
     const entries = [];
     for (const obj of results) {
       if (!obj || typeof obj !== 'object') continue;
-      for (const [k, v] of Object.entries(obj)) entries.push({key: k, value: v});
+      const keys = Object.keys(obj);
+      if (keys.length === 0) continue;
+      const k = keys[0];
+      entries.push({key: k, value: obj[k]});
     }
 
     console.log(`[indexer] MapReduce done, writing ${entries.length} entries...`);
@@ -52,20 +56,20 @@ function buildDistributedIndex(gid, callback, options) {
     }, (err, written) => {
       endWrite();
       if (err) return callback(err);
-      console.log(`[indexer] stored ${written} birth/death entries`);
+      console.log(`[indexer] stored ${written} tfidf entries`);
       metrics.report({results: results.length, written});
       return callback(null, written);
     });
   });
 }
 
-module.exports = {buildDistributedIndex};
+module.exports = {buildTfIdfIndex};
 
 if (require.main === module) {
   const {connectToCluster, shutdown, getArg} = require('../../lib/clusterConnect');
-
   const gid = getArg('--gid', 'wiki');
-  const topN = parseInt(getArg('--top-n', '10'), 10);
+  const articleCount = parseInt(getArg('--article-count', '2400'), 10);
+  const cap = parseInt(getArg('--cap', '10000'), 10);
 
   (async () => {
     let dist;
@@ -83,16 +87,15 @@ if (require.main === module) {
     }
 
     console.log(`[indexer] group: ${gid}`);
-
-    buildDistributedIndex(gid, async (err, count) => {
+    buildTfIdfIndex(gid, async (err, count) => {
       if (err) {
         console.error('[indexer] Error:', err.message);
         await shutdown(dist);
         process.exit(1);
       }
-      console.log(`[indexer] done. ${count} birth/death entries built.`);
+      console.log(`[tfidf indexer] completed ${count} entries`);
       await shutdown(dist);
       process.exit(0);
-    }, {topN});
+    }, {articleCount, cap});
   })();
 }

@@ -6,26 +6,10 @@
 
 const {normalizeError: normalizeStoreError} = require('../../lib/normalizeError');
 const {createMetrics} = require('../../lib/indexerMetrics');
+const {concurrentEach} = require('../../lib/concWrite');
 
 const MAPPER_MODULE = require.resolve('./mapper');
 const REDUCER_MODULE = require.resolve('./reducer');
-
-function listArticleKeys(gid, callback) {
-  const service = globalThis.distribution && globalThis.distribution[gid];
-  if (!service || !service.store) {
-    return callback(new Error(`group not found: ${gid}`));
-  }
-
-  service.store.get({key: null, gid}, (err, allKeys) => {
-    if (err instanceof Error) return callback(err);
-
-    const prefix = 'article-year-history:';
-    const articleKeys = (allKeys || [])
-        .filter((k) => typeof k === 'string' && k.startsWith(prefix));
-
-    callback(null, articleKeys);
-  });
-}
 
 function buildDistributedIndex(gid, callback, options) {
   if (typeof callback !== 'function') callback = () => {};
@@ -37,83 +21,52 @@ function buildDistributedIndex(gid, callback, options) {
   }
 
   const metrics = createMetrics('temporalDiff');
-  console.log('[indexer] listing article keys...');
+  console.log(`[indexer] starting MapReduce (topN=${topN})...`);
 
-  const endList = metrics.phase('list');
-  listArticleKeys(gid, (listErr, articleKeys) => {
-    endList();
-    if (listErr) return callback(listErr);
-    if (!articleKeys || articleKeys.length === 0) {
-      return callback(new Error('no articles found in store'));
+  const endMR = metrics.phase('mapreduce');
+  service.mr.exec({
+    keyPrefix: 'article-year-history:',
+    mapModule: MAPPER_MODULE,
+    mapExport: 'mapArticle',
+    mapContext: {gid},
+    reduceModule: REDUCER_MODULE,
+    reduceExport: 'reduceYearWord',
+    reduceContext: {topN},
+  }, (mrErr, results) => {
+    endMR();
+    if (mrErr) return callback(normalizeStoreError(mrErr));
+
+    if (!results || results.length === 0) {
+      console.log('[indexer] MapReduce produced no results');
+      metrics.report({results: 0, written: 0});
+      return callback(null, 0);
     }
 
-    console.log(`[indexer] found ${articleKeys.length} articles, starting MapReduce (topN=${topN})...`);
+    const entries = [];
+    for (const obj of results) {
+      if (!obj || typeof obj !== 'object') continue;
+      const keys = Object.keys(obj);
+      if (keys.length === 0) continue;
+      const yw = keys[0];
+      entries.push({key: `diff:${yw}`, value: obj[yw]});
+    }
 
-    const endMR = metrics.phase('mapreduce');
-    service.mr.exec({
-      keyPrefix: 'article-year-history:',
-      mapModule: MAPPER_MODULE,
-      mapExport: 'mapArticle',
-      mapContext: {gid},
-      reduceModule: REDUCER_MODULE,
-      reduceExport: 'reduceYearWord',
-      reduceContext: {topN},
-    }, (mrErr, results) => {
-      endMR();
-      if (mrErr) return callback(normalizeStoreError(mrErr));
+    console.log(`[indexer] MapReduce done, writing ${entries.length} entries...`);
+    const endWrite = metrics.phase('write');
 
-      if (!results || results.length === 0) {
-        console.log('[indexer] MapReduce produced no results');
-        metrics.report({input: articleKeys.length, results: 0, written: 0});
-        return callback(null, 0);
-      }
-
-      console.log(`[indexer] MapReduce done, writing ${results.length} index entries (concurrency=64)...`);
-
-      const CONCURRENCY = 64;
-      let idx = 0;
-      let written = 0;
-      let inFlight = 0;
-      let done = false;
-      const endWrite = metrics.phase('write');
-
-      function pump() {
-        while (!done && inFlight < CONCURRENCY && idx < results.length) {
-          const obj = results[idx++];
-          if (!obj || typeof obj !== 'object') continue;
-          const keys = Object.keys(obj);
-          if (keys.length === 0) continue;
-          const yw = keys[0];
-          const value = obj[yw];
-
-          inFlight++;
-          service.store.put(value, {key: `diff:${yw}`, gid}, (putErr) => {
-            if (done) return;
-            const normalized = normalizeStoreError(putErr);
-            if (normalized) { done = true; return callback(normalized); }
-            inFlight--;
-            written++;
-            if (written % 10000 === 0) console.log(`[indexer]   wrote ${written}/${results.length}...`);
-            if (idx >= results.length && inFlight === 0) {
-              done = true;
-              endWrite();
-              console.log(`[indexer] stored ${written} diff:year:word entries`);
-              metrics.report({input: articleKeys.length, results: results.length, written});
-              return callback(null, written);
-            }
-            pump();
-          });
-        }
-      }
-      pump();
+    concurrentEach(entries, (e, cb) => {
+      service.store.put(e.value, {key: e.key, gid}, (putErr) => cb(normalizeStoreError(putErr)));
+    }, (err, written) => {
+      endWrite();
+      if (err) return callback(err);
+      console.log(`[indexer] stored ${written} diff:year:word entries`);
+      metrics.report({results: results.length, written});
+      return callback(null, written);
     });
   });
 }
 
-module.exports = {
-  buildDistributedIndex,
-  listArticleKeys
-};
+module.exports = {buildDistributedIndex};
 
 if (require.main === module) {
   const {connectToCluster, shutdown, getArg} = require('../../lib/clusterConnect');

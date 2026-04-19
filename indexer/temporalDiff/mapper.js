@@ -1,9 +1,3 @@
-/**
- * temporalDiff mapper — invoked once per article (MR keyPrefix
- * 'article-year-history:'). Input `data` has shape {title, years: {year: wikitext}}
- * — year-end snapshots populated by the crawler. No segment replay needed.
- */
-
 const STOP = new Set([
   'the', 'is', 'a', 'an', 'and', 'or', 'but', 'in', 'on',
   'at', 'to', 'for', 'of', 'with', 'by', 'from', 'as',
@@ -24,69 +18,61 @@ const STOP = new Set([
 const TOKEN_RE = /[a-z0-9]+/g;
 
 function tokenize(text) {
+  if (!text) return [];
+  return text
+      .toLowerCase()
+      .match(TOKEN_RE)
+      ?.filter((w) => w.length > 2 && !STOP.has(w)) || [];
+}
+
+function frequency(text) {
   const freq = new Map();
-  if (!text) return freq;
-  const lower = text.toLowerCase();
-  TOKEN_RE.lastIndex = 0;
-  let m;
-  while ((m = TOKEN_RE.exec(lower)) !== null) {
-    const w = m[0];
-    if (w.length <= 2 || STOP.has(w)) continue;
-    freq.set(w, (freq.get(w) || 0) + 1);
+  for (const word of tokenize(text)) {
+    freq.set(word, (freq.get(word) || 0) + 1);
   }
   return freq;
 }
 
-function tallyFromFreqs(oldFreq, newFreq, year, title, agg) {
-  for (const [w, o] of oldFreq) {
-    const n = newFreq.get(w) || 0;
+function diffYears(oldFreq, newFreq, year, title, agg) {
+  for (const [word, o] of oldFreq) {
+    const n = newFreq.get(word) || 0;
     if (o === n) continue;
-    const yw = year + ':' + w;
-    let entry = agg[yw];
-    if (!entry) entry = agg[yw] = {article: title, added: 0, removed: 0};
-    if (n > o) entry.added += n - o;
-    else entry.removed += o - n;
+    const key = `${year}:${word}`;
+    if (!agg[key]) agg[key] = {article: title, added: 0, removed: 0};
+    if (n > o) agg[key].added += n - o;
+    else agg[key].removed += o - n;
   }
-  for (const [w, n] of newFreq) {
-    if (oldFreq.has(w)) continue;
-    const yw = year + ':' + w;
-    let entry = agg[yw];
-    if (!entry) entry = agg[yw] = {article: title, added: 0, removed: 0};
-    entry.added += n;
+  for (const [word, n] of newFreq) {
+    if (oldFreq.has(word)) continue;
+    const key = `${year}:${word}`;
+    if (!agg[key]) agg[key] = {article: title, added: 0, removed: 0};
+    agg[key].added += n;
   }
 }
 
-function mapArticle(key, data, ctx) {
-  if (!data || !data.years || typeof data.years !== 'object') {
-    console.log(`[indexer] skipping key=${key}: data.years missing`);
-    return [];
-  }
+function mapArticle(key, data) {
+  const title = data.title;
+  const years = Object.keys(data.years).map(Number).sort((a, b) => a - b);
 
-  const title = data.title || '';
-  const years = Object.keys(data.years)
-      .map((y) => Number(y))
-      .filter((y) => Number.isFinite(y))
-      .sort((a, b) => a - b);
-
-  if (years.length < 2) return [];
-
-  const agg = Object.create(null);
+  const agg = {};
   let prevFreq = null;
 
-  for (const y of years) {
-    const wikitext = data.years[String(y)];
-    if (!wikitext) {
+  for (const year of years) {
+    const text = data.years[year];
+    if (!text) {
       prevFreq = null;
       continue;
     }
-    const currFreq = tokenize(wikitext);
-    if (prevFreq) tallyFromFreqs(prevFreq, currFreq, y, title, agg);
+    const currFreq = frequency(text);
+    if (prevFreq) diffYears(prevFreq, currFreq, year, title, agg);
     prevFreq = currFreq;
   }
 
-  const out = [];
-  for (const yw of Object.keys(agg)) out.push({[yw]: agg[yw]});
-  return out;
+  const results = [];
+  for (const [yearWord, value] of Object.entries(agg)) {
+    results.push({[yearWord]: value});
+  }
+  return results;
 }
 
-module.exports = {mapArticle, tokenize};
+module.exports = {mapArticle};

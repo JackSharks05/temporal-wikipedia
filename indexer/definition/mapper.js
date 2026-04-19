@@ -10,10 +10,6 @@ const ABBREV = new Set([
   'e.g', 'i.e', 'etc', 'vs', 'inc', 'ltd', 'co', 'corp', 'no',
 ]);
 
-/**
- * Extract the first prose sentence of a Wikipedia article from its wikitext.
- * Returns a plaintext string or null if no prose could be found.
- */
 function parseFirstSentence(wikitext) {
   if (!wikitext) return null;
   let text = wikitext;

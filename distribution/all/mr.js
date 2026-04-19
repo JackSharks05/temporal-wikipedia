@@ -302,11 +302,28 @@ function mr(config) {
 
             console.log('[mr] shuffle: ' + mapKeys.length + ' mapped entries to redistribute');
 
+            const states = [];
+            const configs = [];
             let i = 0;
 
-            const nextMapped = () => {
+            const scanNext = () => {
               if (i >= mapKeys.length) {
-                return finish();
+                if (states.length === 0) {
+                  console.log('[mr] shuffle: scan complete, 0 emissions, skipping batch');
+                  return finish();
+                }
+                console.log('[mr] shuffle: scan complete, ' + states.length + ' emissions, sending appendBatch');
+                const t0 = Date.now();
+                dist[job.gid].mem.appendBatch(states, configs, (err, res) => {
+                  if (err) {
+                    console.log('[mr] shuffle: appendBatch failed: ' + (err.message || err));
+                  } else {
+                    console.log('[mr] shuffle: appendBatch done in ' +
+                        (Date.now() - t0) + 'ms (' + (res && res.appended) + ' appended)');
+                  }
+                  return finish();
+                });
+                return;
               }
 
               if (i > 0 && i % 500 === 0) {
@@ -318,43 +335,19 @@ function mr(config) {
 
               dist.local.store.get({gid: job.mapGid, key: mapKey}, (ge, mapped) => {
                 if (ge || !Array.isArray(mapped) || mapped.length === 0) {
-                  return nextMapped();
+                  return scanNext();
                 }
-
-                let j = 0;
-
-                const sendNext = () => {
-                  if (j >= mapped.length) {
-                    return nextMapped();
+                for (const obj of mapped) {
+                  if (!obj || typeof obj !== 'object') continue;
+                  for (const emitKey of Object.keys(obj)) {
+                    states.push(obj[emitKey]);
+                    configs.push({gid: job.shuffleGid, key: emitKey});
                   }
-
-                  const obj = mapped[j];
-                  j += 1;
-
-                  if (!obj || typeof obj !== 'object') {
-                    return sendNext();
-                  }
-
-                  const emitted = Object.keys(obj);
-                  let k = 0;
-
-                  const appendOne = () => {
-                    if (k >= emitted.length) {
-                      return sendNext();
-                    }
-
-                    const emitKey = emitted[k];
-                    const emitVal = obj[emitKey];
-                    k += 1;
-
-                    dist[job.gid].mem.append(emitVal, {gid: job.shuffleGid, key: emitKey}, () => appendOne());
-                  };
-                  return appendOne();
-                };
-                return sendNext();
+                }
+                return scanNext();
               });
             };
-            return nextMapped();
+            return scanNext();
           });
         },
 
@@ -430,9 +423,6 @@ function mr(config) {
           const job = globalThis.__mr && globalThis.__mr[name];
           if (job && job.mapGid) {
             try {
-              // mr service methods are serialized and rebuilt via `new Function`
-              // on workers, so they have no module-scope `require`. Use the
-              // worker-exposed require (set in distribution.js bootstrap).
               const req = globalThis.__workerRequire;
               if (typeof req !== 'function') {
                 throw new Error('worker missing globalThis.__workerRequire');

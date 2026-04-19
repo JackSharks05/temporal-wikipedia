@@ -102,6 +102,40 @@ function append(state, configuration, callback) {
 };
 
 /**
+ * Batch variant of append. Takes parallel arrays of states and configs,
+ * pushes each onto its bucket. One RPC carries many (key, value) pairs.
+ *
+ * @param {any[]} states
+ * @param {SimpleConfig[]} configurations
+ * @param {Callback} callback
+ */
+function appendBatch(states, configurations, callback) {
+  if (!Array.isArray(states) || !Array.isArray(configurations) ||
+      states.length !== configurations.length) {
+    return callback(new Error('mem.appendBatch: states and configurations must be parallel arrays'), null);
+  }
+
+  let appended = 0;
+  for (let i = 0; i < states.length; i++) {
+    const config = parseConfig(configurations[i]);
+    if (config.key === null) {
+      return callback(new Error('mem.appendBatch: missing key at index ' + i), null);
+    }
+    const partition = getPartition(config.gid);
+    if (!(config.key in partition)) {
+      partition[config.key] = [states[i]];
+    } else {
+      if (!Array.isArray(partition[config.key])) {
+        partition[config.key] = [partition[config.key]];
+      }
+      partition[config.key].push(states[i]);
+    }
+    appended++;
+  }
+  return callback(null, {appended});
+}
+
+/**
  * @param {SimpleConfig} configuration
  * @param {Callback} callback
  */
@@ -144,4 +178,4 @@ function del(configuration, callback) {
   return callback(null,v);
 }
 
-module.exports = {put, get, del, append};
+module.exports = {put, get, del, append, appendBatch};

@@ -71,7 +71,7 @@ function printWordRanking(label, year, items, field, articleField) {
 function handleSingleYearDiff(year, word, done) {
   getDiffEntry(gid, year, word, (err, value) => {
     if (err || !value) {
-      console.log(`  Not found: diff:${year}:${word}`);
+      console.log(`Not found: diff:${year}:${word}`);
     } else {
       printEntry(year, word, value);
     }
@@ -82,7 +82,7 @@ function handleSingleYearDiff(year, word, done) {
 function handleBirth(year, done) {
   getBirthEntry(gid, year, (err, value) => {
     if (err || !value) {
-      console.log(`  Not found: birth:${year}`);
+      console.log(`Not found: birth:${year}`);
     } else {
       printWordRanking('birth', year, value, 'totalAdded', 'articlesAdded');
     }
@@ -93,7 +93,7 @@ function handleBirth(year, done) {
 function handleDeath(year, done) {
   getDeathEntry(gid, year, (err, value) => {
     if (err || !value) {
-      console.log(`  Not found: death:${year}`);
+      console.log(`Not found: death:${year}`);
     } else {
       printWordRanking('death', year, value, 'totalRemoved', 'articlesRemoved');
     }
@@ -120,7 +120,7 @@ function handleRangeDiff(start, end, word, done) {
 
   function next() {
     if (curYear > end) {
-      if (found === 0) console.log(`  No data for "${word}" in ${start}\u2013${end}.`);
+      if (found === 0) console.log(`No data for "${word}" in ${start}\u2013${end}.`);
       console.log();
       return done();
     }
@@ -163,7 +163,7 @@ function dispatch(input, done) {
     return handleSingleYearDiff(single[1], single[2].toLowerCase(), done);
   }
 
-  console.log('  Unknown command. Type "help" for options.');
+  console.log('Unknown command. Type "help" for options.');
   done();
 }
 

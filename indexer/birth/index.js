@@ -64,28 +64,45 @@ function buildDistributedIndex(gid, callback, options) {
         return callback(null, 0);
       }
 
-      console.log(`[indexer] MapReduce done, writing results via putBatch...`);
-
-      const states = [];
-      const configs = [];
+      // Flatten results into a stream of [key, value] pairs (multiple per result obj).
+      const entries = [];
       for (const obj of results) {
         if (!obj || typeof obj !== 'object') continue;
-        for (const [k, v] of Object.entries(obj)) {
-          states.push(v);
-          configs.push({key: k, gid});
-        }
+        for (const [k, v] of Object.entries(obj)) entries.push([k, v]);
       }
 
+      console.log(`[indexer] MapReduce done, writing ${entries.length} entries (concurrency=64)...`);
+
+      const CONCURRENCY = 64;
+      let idx = 0;
+      let written = 0;
+      let inFlight = 0;
+      let done = false;
       const endWrite = metrics.phase('write');
-      service.store.putBatch(states, configs, (putErr, res) => {
-        endWrite();
-        const normalized = normalizeStoreError(putErr);
-        if (normalized) return callback(normalized);
-        const written = (res && res.written) || 0;
-        console.log(`[indexer] stored ${written} birth/death entries`);
-        metrics.report({input: diffKeys.length, results: results.length, written});
-        return callback(null, written);
-      });
+
+      function pump() {
+        while (!done && inFlight < CONCURRENCY && idx < entries.length) {
+          const [key, value] = entries[idx++];
+          inFlight++;
+          service.store.put(value, {key, gid}, (putErr) => {
+            if (done) return;
+            const normalized = normalizeStoreError(putErr);
+            if (normalized) { done = true; return callback(normalized); }
+            inFlight--;
+            written++;
+            if (written % 10000 === 0) console.log(`[indexer]   wrote ${written}/${entries.length}...`);
+            if (idx >= entries.length && inFlight === 0) {
+              done = true;
+              endWrite();
+              console.log(`[indexer] stored ${written} birth/death entries`);
+              metrics.report({input: diffKeys.length, results: results.length, written});
+              return callback(null, written);
+            }
+            pump();
+          });
+        }
+      }
+      pump();
     });
   });
 }

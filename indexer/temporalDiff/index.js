@@ -68,29 +68,44 @@ function buildDistributedIndex(gid, callback, options) {
         return callback(null, 0);
       }
 
-      console.log(`[indexer] MapReduce done, writing ${results.length} index entries via putBatch...`);
+      console.log(`[indexer] MapReduce done, writing ${results.length} index entries (concurrency=64)...`);
 
-      const states = [];
-      const configs = [];
-      for (const obj of results) {
-        if (!obj || typeof obj !== 'object') continue;
-        const keys = Object.keys(obj);
-        if (keys.length === 0) continue;
-        const yw = keys[0];
-        states.push(obj[yw]);
-        configs.push({key: `diff:${yw}`, gid});
-      }
-
+      const CONCURRENCY = 64;
+      let idx = 0;
+      let written = 0;
+      let inFlight = 0;
+      let done = false;
       const endWrite = metrics.phase('write');
-      service.store.putBatch(states, configs, (putErr, res) => {
-        endWrite();
-        const normalized = normalizeStoreError(putErr);
-        if (normalized) return callback(normalized);
-        const written = (res && res.written) || 0;
-        console.log(`[indexer] stored ${written} diff:year:word entries`);
-        metrics.report({input: articleKeys.length, results: results.length, written});
-        return callback(null, written);
-      });
+
+      function pump() {
+        while (!done && inFlight < CONCURRENCY && idx < results.length) {
+          const obj = results[idx++];
+          if (!obj || typeof obj !== 'object') continue;
+          const keys = Object.keys(obj);
+          if (keys.length === 0) continue;
+          const yw = keys[0];
+          const value = obj[yw];
+
+          inFlight++;
+          service.store.put(value, {key: `diff:${yw}`, gid}, (putErr) => {
+            if (done) return;
+            const normalized = normalizeStoreError(putErr);
+            if (normalized) { done = true; return callback(normalized); }
+            inFlight--;
+            written++;
+            if (written % 10000 === 0) console.log(`[indexer]   wrote ${written}/${results.length}...`);
+            if (idx >= results.length && inFlight === 0) {
+              done = true;
+              endWrite();
+              console.log(`[indexer] stored ${written} diff:year:word entries`);
+              metrics.report({input: articleKeys.length, results: results.length, written});
+              return callback(null, written);
+            }
+            pump();
+          });
+        }
+      }
+      pump();
     });
   });
 }

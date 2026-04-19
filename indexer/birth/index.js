@@ -64,7 +64,6 @@ function buildDistributedIndex(gid, callback, options) {
         return callback(null, 0);
       }
 
-      // Flatten results into a stream of [key, value] pairs (multiple per result obj).
       const entries = [];
       for (const obj of results) {
         if (!obj || typeof obj !== 'object') continue;

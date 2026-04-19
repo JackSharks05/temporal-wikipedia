@@ -80,8 +80,8 @@ function store(config) {
           getLocal().comm.send([params], remote, (e, v) => {
             if (e) {
               errors[util.id.getNID(node)] = e;
-            } else {
-              keys.push(...v);
+            } else if (Array.isArray(v)) {
+              for (let j = 0; j < v.length; j++) keys.push(v[j]);
             }
             sent++;
             if (sent == Object.keys(group).length) {

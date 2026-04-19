@@ -88,7 +88,7 @@ function buildDistributedIndex(gid, callback, options) {
             if (normalized) { done = true; return callback(normalized); }
             inFlight--;
             written++;
-            if (written % 10000 === 0) console.log(`[indexer]   wrote ${written}/${results.length}...`);
+            if (written % 10000 === 0) console.log(`[indexer] wrote ${written}/${results.length}...`);
             if (idx >= results.length && inFlight === 0) {
               done = true;
               endWrite();

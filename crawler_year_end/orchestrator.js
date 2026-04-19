@@ -96,7 +96,6 @@ class Orchestrator {
       avgLatencyMs = withLatency.reduce((s, r) => s + r.elapsedMs, 0) / latencySampleSize;
     }
 
-    // ETA: remaining articles / current rate (completion-based)
     const remaining = Math.max(0, this.maxPages - this.completedCount);
     const rateForEta = recentRate > 0 ? recentRate : overallRate;
     const etaSec = rateForEta > 0 ? Math.round(remaining / rateForEta) : null;
@@ -135,7 +134,7 @@ class Orchestrator {
     };
     const tmp = this.savePath + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(state, null, 2));
-    fs.renameSync(tmp, this.savePath); // atomic
+    fs.renameSync(tmp, this.savePath); 
     const s = this.status();
     const etaStr = s.etaSec != null ? `eta ~${Math.round(s.etaSec / 60)}m` : 'eta n/a';
     console.log(

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 KEY="../csci1380.pem"
-IP_FILE="worker_ips.txt"
+IP_FILE="aws_ips.txt"
 
 if [[ ! -f "$IP_FILE" ]]; then
   echo "Error: $IP_FILE not found."

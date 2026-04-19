@@ -2,65 +2,12 @@
 
 /**
  * temporalDiff indexer — distributed MapReduce over article-meta keys.
- *
- * Map:    one call per article; loads that article's segments locally,
- *         streams revisions with a year-boundary sliding window, and
- *         emits per-year per-word {added, removed} tallies. Implementation
- *         lives in ./mapper.js and is invoked via MR's mapModule option.
- * Reduce: aggregates year:word tallies across all articles. Implementation
- *         in ./reducer.js.
- * Post:   writes diff:<year>:<word> entries to the store.
  */
 
 const {normalizeError: normalizeStoreError} = require('../../lib/normalizeError');
 
 const MAPPER_MODULE = require.resolve('./mapper');
 const REDUCER_MODULE = require.resolve('./reducer');
-
-/**
- * Ping every node in the group to detect dead workers before kicking off MR.
- * Prevents the job from hanging forever on missing notify callbacks.
- */
-function healthCheck(gid, callback) {
-  const dist = globalThis.distribution;
-  if (!dist || !dist.local || !dist.local.groups || !dist.local.comm) {
-    return callback(new Error('healthCheck: distribution not available'));
-  }
-
-  dist.local.groups.get(gid, (err, group) => {
-    if (err) return callback(err);
-    const nodes = Object.values(group || {});
-    if (!nodes.length) {
-      return callback(new Error(`healthCheck: group "${gid}" is empty`));
-    }
-
-    console.log(`[indexer] health-checking ${nodes.length} nodes...`);
-
-    let pending = nodes.length;
-    const dead = [];
-
-    for (const node of nodes) {
-      dist.local.comm.send(
-          ['all'],
-          {node, service: 'groups', method: 'get'},
-          (sendErr) => {
-            if (sendErr) dead.push(`${node.ip}:${node.port}`);
-            pending--;
-            if (pending === 0) {
-              if (dead.length > 0) {
-                return callback(new Error(
-                    `${dead.length}/${nodes.length} workers unreachable: ${dead.join(', ')}\n` +
-                    `Restart them with: bash scripts/startAllWorkers.sh`,
-                ));
-              }
-              console.log(`[indexer] all ${nodes.length} nodes reachable`);
-              callback(null);
-            }
-          },
-      );
-    }
-  });
-}
 
 /**
  * List all article-meta keys in the store (one per article).
@@ -152,7 +99,6 @@ function buildDistributedIndex(gid, callback, options) {
 
 module.exports = {
   buildDistributedIndex,
-  healthCheck,
 };
 
 if (require.main === module) {
@@ -178,23 +124,16 @@ if (require.main === module) {
 
     console.log(`[indexer] group: ${gid}`);
 
-    healthCheck(gid, async (healthErr) => {
-      if (healthErr) {
-        console.error('[indexer] pre-flight failed:', healthErr.message);
+
+    buildDistributedIndex(gid, async (err, count) => {
+    if (err) {
+        console.error('[indexer] Error:', err.message);
         await shutdown(dist);
         process.exit(1);
-      }
-
-      buildDistributedIndex(gid, async (err, count) => {
-        if (err) {
-          console.error('[indexer] Error:', err.message);
-          await shutdown(dist);
-          process.exit(1);
-        }
-        console.log(`[indexer] done. ${count} year:word index entries built.`);
-        await shutdown(dist);
-        process.exit(0);
-      }, {topN});
-    });
+    }
+    console.log(`[indexer] done. ${count} year:word index entries built.`);
+    await shutdown(dist);
+    process.exit(0);
+    }, {topN});
   })();
 }

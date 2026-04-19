@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const {normalizeError: normalizeStoreError} = require('../../lib/normalizeError');
+const {createMetrics} = require('../../lib/indexerMetrics');
 
 const MAPPER_MODULE = require.resolve('./mapper');
 const REDUCER_MODULE = require.resolve('./reducer');
@@ -31,9 +32,12 @@ function buildDistributedIndex(gid, callback, options) {
     return callback(new Error(`group not found or missing mr: ${gid}`));
   }
 
+  const metrics = createMetrics('birth');
   console.log('[indexer] listing diff keys...');
 
+  const endList = metrics.phase('list');
   listDiffKeys(gid, (listErr, diffKeys) => {
+    endList();
     if (listErr) return callback(listErr);
     if (!diffKeys || diffKeys.length === 0) {
       return callback(new Error('no diff:* entries found in store'));
@@ -41,6 +45,7 @@ function buildDistributedIndex(gid, callback, options) {
 
     console.log(`[indexer] found ${diffKeys.length} diff entries, starting MapReduce (topN=${topN})...`);
 
+    const endMR = metrics.phase('mapreduce');
     service.mr.exec({
       keyPrefix: 'diff:',
       mapModule: MAPPER_MODULE,
@@ -50,10 +55,12 @@ function buildDistributedIndex(gid, callback, options) {
       reduceExport: 'reducer',
       reduceContext: {topN},
     }, (mrErr, results) => {
+      endMR();
       if (mrErr) return callback(normalizeStoreError(mrErr));
 
       if (!results || results.length === 0) {
         console.log('[indexer] MapReduce produced no results');
+        metrics.report({input: diffKeys.length, results: 0, written: 0});
         return callback(null, 0);
       }
 
@@ -67,10 +74,13 @@ function buildDistributedIndex(gid, callback, options) {
 
       let i = 0;
       let written = 0;
+      const endWrite = metrics.phase('write');
 
       function nextWrite() {
         if (i >= entries.length) {
+          endWrite();
           console.log(`[indexer] stored ${written} birth/death entries`);
+          metrics.report({input: diffKeys.length, results: results.length, written});
           return callback(null, written);
         }
 

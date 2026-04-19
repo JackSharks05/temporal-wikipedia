@@ -5,6 +5,7 @@
  */
 
 const {normalizeError: normalizeStoreError} = require('../../lib/normalizeError');
+const {createMetrics} = require('../../lib/indexerMetrics');
 
 const MAPPER_MODULE = require.resolve('./mapper');
 const REDUCER_MODULE = require.resolve('./reducer');
@@ -18,7 +19,7 @@ function listArticleKeys(gid, callback) {
   service.store.get({key: null, gid}, (err, allKeys) => {
     if (err instanceof Error) return callback(err);
 
-    const prefix = 'article-meta:';
+    const prefix = 'article-year-history:';
     const articleKeys = (allKeys || [])
         .filter((k) => typeof k === 'string' && k.startsWith(prefix));
 
@@ -35,9 +36,12 @@ function buildDistributedIndex(gid, callback, options) {
     return callback(new Error(`group not found or missing mr: ${gid}`));
   }
 
+  const metrics = createMetrics('temporalDiff');
   console.log('[indexer] listing article keys...');
 
+  const endList = metrics.phase('list');
   listArticleKeys(gid, (listErr, articleKeys) => {
+    endList();
     if (listErr) return callback(listErr);
     if (!articleKeys || articleKeys.length === 0) {
       return callback(new Error('no articles found in store'));
@@ -45,8 +49,9 @@ function buildDistributedIndex(gid, callback, options) {
 
     console.log(`[indexer] found ${articleKeys.length} articles, starting MapReduce (topN=${topN})...`);
 
+    const endMR = metrics.phase('mapreduce');
     service.mr.exec({
-      keyPrefix: 'article-meta:',
+      keyPrefix: 'article-year-history:',
       mapModule: MAPPER_MODULE,
       mapExport: 'mapArticle',
       mapContext: {gid},
@@ -54,10 +59,12 @@ function buildDistributedIndex(gid, callback, options) {
       reduceExport: 'reduceYearWord',
       reduceContext: {topN},
     }, (mrErr, results) => {
+      endMR();
       if (mrErr) return callback(normalizeStoreError(mrErr));
 
       if (!results || results.length === 0) {
         console.log('[indexer] MapReduce produced no results');
+        metrics.report({input: articleKeys.length, results: 0, written: 0});
         return callback(null, 0);
       }
 
@@ -65,10 +72,13 @@ function buildDistributedIndex(gid, callback, options) {
 
       let i = 0;
       let written = 0;
+      const endWrite = metrics.phase('write');
 
       function nextWrite() {
         if (i >= results.length) {
+          endWrite();
           console.log(`[indexer] stored ${written} diff:year:word entries`);
+          metrics.report({input: articleKeys.length, results: results.length, written});
           return callback(null, written);
         }
 

@@ -37,16 +37,7 @@
  * @property {(configuration: MRConfig, callback: Callback) => void} exec
  */
 
-/**
- * Build a map/reduce shim that runs on the worker. Workers rebuild this via
- * `new Function(...)` after serialization, which means the shim body cannot
- * close over outer variables — everything it needs (module path, export
- * name, ctx) must be inlined as a string literal.
- *
- * The shim calls `globalThis.__workerRequire` (set in distribution.js
- * bootstrap) to load the user's module, then invokes the named export with
- * (key, payload, ctx).
- */
+
 function makeModuleShim(kind, modulePath, exportName, ctx) {
   const modLit = JSON.stringify(modulePath);
   const expLit = JSON.stringify(exportName);

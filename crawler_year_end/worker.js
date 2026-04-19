@@ -41,8 +41,9 @@ async function runWorker(dist) {
     }
 
     if (title === null) {
-      console.log('[worker] coord reports job complete; exiting');
-      break;
+      console.log('[worker] coord reports job complete; staying up for MR');
+      await sleep(30000);
+      continue;
     }
     if (title === '__WAIT__') {
       await sleep(5000);

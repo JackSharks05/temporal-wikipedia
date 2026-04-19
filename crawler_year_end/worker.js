@@ -13,7 +13,7 @@ const YEARS = [
 
 const ip = getArg('--ip', getPrivateIp());
 const port = Number(getArg('--port', '8080'));
-const orchestratorIp = getArg('--orchip', '172.31.17.78');
+const orchestratorIp = getArg('--orchip', '172.31.33.54');
 const orchestratorPort = Number(getArg('--orchport', '9000'));
 const nodesFile = getArg('--nodes-file', 'nodes.txt');
 const COORD = {ip: orchestratorIp, port: orchestratorPort};

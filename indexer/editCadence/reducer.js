@@ -1,26 +1,50 @@
-function reduceEditCadence(yearWord, editCadences) {
-  const totalCadence = editCadences.reduce((acc, cadence) => acc + cadence, 0);
-  return { yearWord, totalCadence };
-}
+function reduceEditCadence(key, values) {
+  const vals = Array.isArray(values) ? values : [values];
+  const parts = key.split(":");
 
-function reduceYearWord(key, values) {
-  const [prefix, year, word] = key.split(":");
-  if (prefix !== "diff") {
-    throw new Error(`Unexpected key prefix: ${prefix}`);
+  if (parts.length < 3 || parts[0] !== "editcadence") {
+    throw new Error(`oops, unexpected key format: ${key}`);
   }
-  const totalAdded = values.reduce((sum, v) => sum + (v.totalAdded || 0), 0);
-  const totalRemoved = values.reduce(
-    (sum, v) => sum + (v.totalRemoved || 0),
-    0,
-  );
-  const articleCount = values.reduce(
-    (sum, v) => sum + (v.articleCount || 0),
-    0,
-  );
-  return {
-    key: `diff:${year}:${word}`,
-    value: { totalAdded, totalRemoved, articleCount },
-  };
+
+  const scope = parts[1];
+
+  if (scope === "page") {
+    const pageId = parts[2];
+    const year = parts[3];
+    const edits = vals.reduce((sum, v) => sum + ((v && v.count) || 0), 0);
+
+    return {
+      [`editfreq:page:${pageId}:${year}`]: {
+        pageId,
+        year: Number(year),
+        edits,
+      },
+    };
+  }
+
+  if (scope === "global") {
+    const year = parts[2];
+    let totalEdits = 0;
+    const pageIds = new Set();
+
+    for (const v of vals) {
+      if (!v) continue;
+      totalEdits += v.count || 0;
+      if (v.pageId) pageIds.add(String(v.pageId));
+    }
+
+    const distinctPages = pageIds.size;
+    return {
+      [`editfreq:global:${year}`]: {
+        year: Number(year),
+        totalEdits,
+        distinctPages,
+        meanEditsPerPage: distinctPages > 0 ? totalEdits / distinctPages : 0,
+      },
+    };
+  }
+
+  throw new Error(`oops - unexpected edit cadence scope: ${scope}`);
 }
 
-module.exports = { reduceYearWord, reduceEditCadence };
+module.exports = { reduceEditCadence };

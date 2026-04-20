@@ -7,6 +7,11 @@
 const {
   normalizeError: normalizeStoreError,
 } = require("../../lib/normalizeError");
+  const {
+    connectToCluster,
+    shutdown,
+    getArg,
+  } = require("../../lib/clusterConnect");
 const { createMetrics } = require("../../lib/indexerMetrics");
 
 const MAPPER_MODULE = require.resolve("./mapper");
@@ -52,13 +57,7 @@ function buildDistributedIndex(gid, callback, options) {
 
 module.exports = { buildDistributedIndex };
 
-if (require.main === module) {
-  const {
-    connectToCluster,
-    shutdown,
-    getArg,
-  } = require("../../lib/clusterConnect");
-
+async function main(){
   const gid = getArg("--gid", "wiki");
   const topN = parseInt(getArg("--top-n", "10"), 10);
 
@@ -96,4 +95,8 @@ if (require.main === module) {
       { topN },
     );
   })();
+}
+
+if (require.main == module) {
+    main();
 }

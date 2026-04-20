@@ -1,29 +1,23 @@
 const fs = require('fs');
-const {connectToCluster, getArg, getPrivateIp, hasArg} = require('../lib/clusterConnect');
+const {connectToCluster, getArg, getPrivateIp} = require('../lib/clusterConnect');
 const {normalizeTitle} = require('../storage/segmentArticle');
 
 const DEFAULT_MAX_PAGES = 100000;
-const DEFAULT_MAX_QUEUE_SIZE = 1_000_000;
-const DEFAULT_CHECKPOINT_INTERVAL_MS = 30_000;
+const DEFAULT_MAX_QUEUE_SIZE = 100000;
 const DEFAULT_SAVE_PATH = 'crawl_save.json';
 
 class Orchestrator {
-  constructor(seeds, options = {}) {
-    this.maxPages = options.maxPages || DEFAULT_MAX_PAGES;
-    this.maxQueueSize = options.maxQueueSize || DEFAULT_MAX_QUEUE_SIZE;
-    this.savePath = options.savePath || DEFAULT_SAVE_PATH;
-    this.maxRecent = options.maxRecent || 100;
+  constructor(seeds) {
+    this.maxPages = DEFAULT_MAX_PAGES;
+    this.maxQueueSize = DEFAULT_MAX_QUEUE_SIZE;
+    this.savePath = DEFAULT_SAVE_PATH;
 
     this.queue = [];
     this.queuedSet = new Set();
     this.visited = new Set();
     this.failed = new Set();
 
-    this.startedAt = Date.now();
-    this.completedCount = 0;    
-    this.recentCompletions = []; 
-
-    const restored = options.fresh ? false : this.restore();
+    const restored = this.restore();
     if (!restored) {
       for (const seed of seeds) this.enqueue(seed);
       console.log(`[orch] seeded with ${seeds.length} titles, queue=${this.queue.length}`);
@@ -40,7 +34,7 @@ class Orchestrator {
     this.queuedSet.add(k);
   }
 
-  getJob(nid) {
+  getJob() {
     if (this.visited.size >= this.maxPages) return null;
 
     while (this.queue.length > 0) {
@@ -51,7 +45,7 @@ class Orchestrator {
       this.visited.add(k);
       return title;
     }
-    return '__WAIT__';
+    return 'try again';
   }
 
   notify(title, result) {
@@ -64,51 +58,9 @@ class Orchestrator {
     }
 
     this.visited.add(k);
-
-    this.completedCount += 1;
-    const elapsedMs = (result && typeof result.elapsedMs === 'number') ? result.elapsedMs : null;
-    this.recentCompletions.push({at: Date.now(), elapsedMs});
-    if (this.recentCompletions.length > this.maxRecent) this.recentCompletions.shift();
-
     if (result && Array.isArray(result.links)) {
       for (const link of result.links) this.enqueue(link);
     }
-  }
-
-  perfSnapshot() {
-    const uptimeMs = Date.now() - this.startedAt;
-    const overallRate = uptimeMs > 0 ? this.completedCount / (uptimeMs / 1000) : 0;
-
-    let recentRate = 0;
-    let avgLatencyMs = 0;
-    let latencySampleSize = 0;
-    if (this.recentCompletions.length >= 2) {
-      const oldest = this.recentCompletions[0].at;
-      const newest = this.recentCompletions[this.recentCompletions.length - 1].at;
-      const spanMs = newest - oldest;
-      if (spanMs > 0) {
-        recentRate = (this.recentCompletions.length - 1) / (spanMs / 1000);
-      }
-    }
-    const withLatency = this.recentCompletions.filter((r) => r.elapsedMs != null);
-    latencySampleSize = withLatency.length;
-    if (latencySampleSize > 0) {
-      avgLatencyMs = withLatency.reduce((s, r) => s + r.elapsedMs, 0) / latencySampleSize;
-    }
-
-    const remaining = Math.max(0, this.maxPages - this.completedCount);
-    const rateForEta = recentRate > 0 ? recentRate : overallRate;
-    const etaSec = rateForEta > 0 ? Math.round(remaining / rateForEta) : null;
-
-    return {
-      uptimeSec: Math.round(uptimeMs / 1000),
-      completed: this.completedCount,
-      overallRatePerSec: Number(overallRate.toFixed(2)),
-      recentRatePerSec: Number(recentRate.toFixed(2)),
-      avgLatencyMs: Math.round(avgLatencyMs),
-      latencySampleSize,
-      etaSec,
-    };
   }
 
   status() {
@@ -117,7 +69,6 @@ class Orchestrator {
       queued: this.queue.length,
       failed: this.failed.size,
       cap: this.maxPages,
-      ...this.perfSnapshot(),
     };
   }
 
@@ -134,15 +85,9 @@ class Orchestrator {
     };
     const tmp = this.savePath + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(state, null, 2));
-    fs.renameSync(tmp, this.savePath); 
+    fs.renameSync(tmp, this.savePath);
     const s = this.status();
-    const etaStr = s.etaSec != null ? `eta ~${Math.round(s.etaSec / 60)}m` : 'eta n/a';
-    console.log(
-        `[orch] checkpoint: ${s.completed}/${s.cap} completed (${s.visited} dispatched, ${s.queued} queued, ${s.failed} failed) | ` +
-        `throughput ${s.recentRatePerSec}/s recent (${s.overallRatePerSec}/s overall) | ` +
-        `latency ${s.avgLatencyMs}ms avg over ${s.latencySampleSize} samples | ` +
-        `uptime ${s.uptimeSec}s | ${etaStr}`,
-    );
+    console.log(`[orch] checkpoint: ${s.visited}/${s.cap} visited, ${s.queued} queued, ${s.failed} failed`);
   }
 
   restore() {
@@ -153,10 +98,8 @@ class Orchestrator {
       this.visited = new Set(state.visited || []);
       this.failed = new Set(state.failed || []);
       this.queuedSet = new Set(this.queue.map((t) => normalizeTitle(t)).filter(Boolean));
-      console.log(`[orch] restored from ${this.savePath}: ${this.visited.size} visited, ${this.queue.length} queued, ${this.failed.size} failed`);
       return true;
     } catch (err) {
-      console.error(`[orch] restore failed (${err.message}); starting fresh`);
       return false;
     }
   }
@@ -164,85 +107,74 @@ class Orchestrator {
 
 module.exports = {Orchestrator};
 
-// === CLI entry ===
+async function main() {
+  const ip = getArg('--ip', getPrivateIp());
+  const port = Number(getArg('--port', '9000'));
+  const nodesFile = getArg('--nodes-file', null);
+  const gid = getArg('--gid', 'wiki');
 
-if (require.main === module) {
-  (async () => {
-    const ip = getArg('--ip', getPrivateIp());
-    const port = Number(getArg('--port', '9000'));
-    const nodesFile = getArg('--nodes-file', null);
-    const gid = getArg('--gid', 'wiki');
-    const maxPages = Number(getArg('--max-pages', String(DEFAULT_MAX_PAGES)));
-    const seedFile = getArg('--seeds', null);
-    const savePath = getArg('--save', DEFAULT_SAVE_PATH);
-    const fresh = hasArg('--fresh');
-    const checkpointMs = Number(getArg('--checkpoint-ms', String(DEFAULT_CHECKPOINT_INTERVAL_MS)));
+  const seeds = [
+    "United States",
+    "Artificial Intelligence",
+    "Evolution",
+    "Internet",
+    "Gene",
+    "Computer",
+    "iPhone",
+    "Democracy",
+    "Pandemic",
+    "Social media",
+  ];
 
-    if (!seedFile) {
-      console.error('Usage: node crawler_year_end/orchestrator.js --seeds <file> --nodes-file <nodes.txt> [options]');
-      process.exit(1);
-    }
+  const dist = await connectToCluster({ip, port, gid, nodesFile});
 
-    const seeds = fs.readFileSync(seedFile, 'utf8')
-        .split('\n')
-        .map((s) => s.trim())
-        .filter((s) => s && !s.startsWith('#'));
+  const orch = new Orchestrator(seeds);
+  console.log('[orch] initial state:', orch.status());
 
-    const dist = await connectToCluster({ip, port, gid, nodesFile});
-
-    const orch = new Orchestrator(seeds, {maxPages, savePath, fresh});
-    console.log('[orch] initial state:', orch.status());
-
-    const service = {
-      get_job(nid, callback) {
-        try {
-          callback(null, orch.getJob(nid));
-        } catch (err) {
-          callback(err);
-        }
-      },
-      notify(title, result, callback) {
-        try {
-          orch.notify(title, result);
-          callback(null, {ok: true});
-        } catch (err) {
-          callback(err);
-        }
-      },
-      status(callback) {
-        callback(null, orch.status());
-      },
-    };
-
-    await new Promise((res, rej) => dist.local.routes.put(service, 'orchestrator', (err) => err ? rej(err) : res()));
-    console.log(`[orch] listening on ${ip}:${port} (service=orchestrator)`);
-
-    let shuttingDown = false;
-    const tick = setInterval(() => {
-      if (shuttingDown) return;
-      orch.checkpoint();
-      if (orch.isDone()) {
-        console.log('[orch] crawl complete:', orch.status());
-        shuttingDown = true;
-        clearInterval(tick);
-        setTimeout(() => {
-          orch.checkpoint();
-          process.exit(0);
-        }, 30_000);
+  const service = {
+    get_job(nid, callback) {
+      try {
+        callback(null, orch.getJob());
+      } catch (err) {
+        callback(err);
       }
-    }, checkpointMs);
+    },
+    notify(title, result, callback) {
+      try {
+        orch.notify(title, result);
+        callback(null, {ok: true});
+      } catch (err) {
+        callback(err);
+      }
+    },
+  };
 
-    const onSig = () => {
-      if (shuttingDown) return;
+  await new Promise((res, rej) => dist.local.routes.put(service, 'orchestrator', (err) => err ? rej(err) : res()));
+  console.log(`[orch] listening on ${ip}:${port} (service=orchestrator)`);
+
+  let shuttingDown = false;
+  const tick = setInterval(() => {
+    if (shuttingDown) return;
+    orch.checkpoint();
+    if (orch.isDone()) {
+      console.log('[orch] crawl complete:', orch.status());
       shuttingDown = true;
-      console.log('\n[orch] signal received — checkpointing and exiting');
-      try { orch.checkpoint(); } catch (e) { console.error('[orch] checkpoint failed:', e.message); }
-      process.exit(0);
-    };
-    process.on('SIGINT', onSig);
-    process.on('SIGTERM', onSig);
-  })().catch((err) => {
-    console.error('[orch] fatal:', err);
-    process.exit(1);
-  });
+      clearInterval(tick);
+      setTimeout(() => {
+        orch.checkpoint();
+        process.exit(0);
+      }, 30000);
+    }
+  }, 30000);
+
+  const onSig = () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    orch.checkpoint();
+    process.exit(0);
+  };
+  process.on('SIGINT', onSig);
+  process.on('SIGTERM', onSig);
 }
+
+if (require.main === module) main();

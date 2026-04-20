@@ -1,4 +1,4 @@
-const {execFileSync, spawnSync} = require('node:child_process');
+const {spawnSync} = require('node:child_process');
 const {JSDOM} = require('jsdom');
 const {normalizeTitle, createSegment} = require('../storage/segmentArticle');
 
@@ -37,12 +37,7 @@ function shouldFollowArticleTitle(title) {
   return true;
 }
 
-const API_MAX_ATTEMPTS = 4;
-const API_THROTTLE_MS = 500;
-const FALLBACK_BACKOFF = [5, 10, 20];
-let lastApiCallMs = 0;
-
-function api(params,options) {
+function api(params, options) {
   options = options || {};
 
   let secs = Math.ceil((options.timeoutMs || DEFAULT_TIMEOUT_MS) / 1000);
@@ -62,51 +57,19 @@ function api(params,options) {
   let lang = options.language || 'en';
   let project = options.project || 'wikipedia';
   let url = 'https://' + lang + '.' + project + '.org/w/api.php?' + new URLSearchParams(cleaned).toString();
-  let curlArgs = ['--silent','--show-error','--location','--compressed',
-    '--max-time',String(secs),'--user-agent',ua,
-    '-w','\n%{http_code}',
-    url];
+  let curlArgs = ['--silent', '--show-error', '--location', '--compressed',
+    '--max-time', String(secs), '--user-agent', ua, url];
 
-  for (let attempt = 0; attempt < API_MAX_ATTEMPTS; attempt++) {
-    let now = Date.now();
-    let gap = now - lastApiCallMs;
-    if (lastApiCallMs > 0 && gap < API_THROTTLE_MS) {
-      execFileSync('sleep', [String((API_THROTTLE_MS - gap) / 1000)]);
-    }
-    lastApiCallMs = Date.now();
-
-    let res = spawnSync('curl', curlArgs, {encoding:'utf8', maxBuffer: 64 * 1024 * 1024});
-    let output = (res.stdout || '').trimEnd();
-    let lastNl = output.lastIndexOf('\n');
-    let statusCode = parseInt(output.substring(lastNl + 1), 10) || 0;
-    let body = lastNl >= 0 ? output.substring(0, lastNl) : '';
-
-    if (statusCode === 429) {
-      let wait = FALLBACK_BACKOFF[attempt] || 20;
-      console.log('[wikiFetch] 429 rate-limited, waiting ' + wait + 's (attempt ' + (attempt + 1) + '/' + API_MAX_ATTEMPTS + ')');
-      execFileSync('sleep', [String(wait)]);
-      continue;
-    }
-
-    if ((res.status !== 0 && !body.trim()) || (statusCode >= 400 && !body.trim())) {
-      let errMsg = (res.stderr || '').trim() || 'curl failed with status ' + statusCode + ' exit code ' + res.status;
-      if (attempt < API_MAX_ATTEMPTS - 1) {
-        console.log('[wikiFetch] curl error, retrying in 5s: ' + errMsg.split('\n')[0]);
-        execFileSync('sleep', ['5']);
-        continue;
-      }
-      throw new Error(errMsg);
-    }
-
-    let parsed = JSON.parse(body);
-
-    if (parsed && parsed.error) {
-      throw new Error(parsed.error.info || parsed.error.code || 'Wikipedia API error');
-    }
-
-    return parsed;
+  let res = spawnSync('curl', curlArgs, {encoding: 'utf8', maxBuffer: 64 * 1024 * 1024});
+  if (res.status !== 0) {
+    throw new Error((res.stderr || '').trim() || 'curl failed (exit ' + res.status + ')');
   }
-  throw new Error('Wikipedia API: max retries exceeded for ' + url);
+
+  let parsed = JSON.parse(res.stdout);
+  if (parsed && parsed.error) {
+    throw new Error(parsed.error.info || parsed.error.code || 'Wikipedia API error');
+  }
+  return parsed;
 }
 
 function fetchCurrentPageHtml(title,options) {
@@ -244,17 +207,6 @@ function fetchArticleBundle(title,options) {
   return {title:hist.title, pageId:hist.pageId || current.pageId, revisions:hist.revisions, links:links, truncated:hist.truncated};
 }
 
-/**
- * Streaming fetch+segment+store: fetches revisions 50 at a time from the
- * Wikipedia API, creates a segment from each batch, writes it to the
- * distributed store immediately, then discards the batch.
- * Peak memory stays flat regardless of total revision count.
- *
- * @param {string} title - Article title
- * @param {string} wikiGid - Group ID for the wiki store
- * @param {object} options - fetchOptions (historyLimit, timeoutMs, etc.)
- * @returns {{ title, pageId, revisionCount, segmentCount, truncated, links }}
- */
 function fetchAndStoreRevisions(title, wikiGid, options) {
   options = options || {};
 

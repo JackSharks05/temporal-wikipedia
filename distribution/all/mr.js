@@ -24,17 +24,15 @@
  * @typedef {Object} MRConfig
  * @property {Mapper} [map]
  * @property {Reducer} [reduce]
- * @property {string} [mapModule]    absolute path to a module exporting the mapper
- * @property {string} [mapExport]    exported name (default: 'map')
- * @property {any}    [mapContext]   JSON-serializable ctx passed as 3rd arg
- * @property {string} [reduceModule] absolute path to a module exporting the reducer
- * @property {string} [reduceExport] exported name (default: 'reduce')
+ * @property {string} [mapModule]  
+ * @property {string} [mapExport]
+ * @property {any}    [mapContext]  
+ * @property {string} [reduceModule] 
+ * @property {string} [reduceExport] 
  * @property {any}    [reduceContext]
  * @property {string[]} [keys]
  * @property {string} [keyPrefix]
- * @property {boolean} [storeResults] if true, workers write reduced outputs directly
- *   to the distributed store (keyed by the reducer's output key) instead of shipping
- *   them back to the coordinator. Avoids OOM on large reduce outputs.
+ * @property {boolean} [storeResults]
  *
  * @typedef {Object} Mr
  * @property {(configuration: MRConfig, callback: Callback) => void} exec
@@ -50,14 +48,8 @@ function makeModuleShim(kind, modulePath, exportName, ctx) {
   const body = `
     try {
       var req = globalThis.__workerRequire;
-      if (typeof req !== 'function') {
-        throw new Error('worker missing globalThis.__workerRequire');
-      }
       var impl = req(${modLit});
       var fn = impl && impl[${expLit}];
-      if (typeof fn !== 'function') {
-        throw new Error('mr shim: ' + ${modLit} + ' does not export ' + ${expLit});
-      }
       return fn(key, ${payloadArg}, ${ctxLit});
     } catch (err) {
       console.log('[mr:${kind}:shim] error for key=' + key + ': ' + (err && err.message));
@@ -311,18 +303,11 @@ function mr(config) {
             const scanNext = () => {
               if (i >= mapKeys.length) {
                 if (states.length === 0) {
-                  console.log('[mr] shuffle: scan complete, 0 emissions, skipping batch');
                   return finish();
                 }
                 console.log('[mr] shuffle: scan complete, ' + states.length + ' emissions, sending appendBatch');
                 const t0 = Date.now();
                 dist[job.gid].mem.appendBatch(states, configs, (err, res) => {
-                  if (err) {
-                    console.log('[mr] shuffle: appendBatch failed: ' + (err.message || err));
-                  } else {
-                    console.log('[mr] shuffle: appendBatch done in ' +
-                        (Date.now() - t0) + 'ms (' + (res && res.appended) + ' appended)');
-                  }
                   return finish();
                 });
                 return;

@@ -205,7 +205,8 @@ function mem(config) {
         dist.local.comm.send([g.states, g.configurations], remote, (err, res) => {
           if (err && !firstErr) firstErr = err;
           if (res && typeof res.appended === 'number') totalAppended += res.appended;
-          if (--outstanding === 0) {
+          outstanding--;
+          if (outstanding === 0) {
             callback(firstErr, firstErr ? null : {appended: totalAppended});
           }
         });

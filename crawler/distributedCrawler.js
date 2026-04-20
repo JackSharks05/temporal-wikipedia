@@ -171,7 +171,6 @@ async function seedTitles(dist,gid,titles) {
       await write(store,gid,key,pageRecord(title));
       made++;
     } catch (err) {
-      // key may already exist from a previous run
     }
   }
   return made;
@@ -296,20 +295,35 @@ async function runDistributedCrawler(options) {
 
 module.exports = {PAGE_PREFIX,pageKeyForTitle,runDistributedCrawler,crawlLoop};
 
-if (require.main === module) {
-  const {getArg: arg, manyArgs} = require('../lib/clusterConnect');
+async function main() {
+  const {connectToCluster, shutdown, getArg: arg, manyArgs, getPrivateIp} =
+      require('../lib/clusterConnect');
 
-  let seeds = manyArgs('--seed');
-  if (!seeds.length) {
-    let oneSeed = arg('--seed',null);
-    if (oneSeed) seeds = [oneSeed];
+  const nodesFile = arg('--nodes-file', null);
+  if (!nodesFile) {
+    process.exit(1);
   }
 
-  runDistributedCrawler({ip: arg('--ip','127.0.0.1'),
-    port: Number(arg('--port','9000')),
-    seeds: seeds.length ? seeds : [SETTINGS.seed],
-    articleCap: Number(arg('--article-cap',arg('--hard-cap',String(SETTINGS.maxPages)))),
-    maxRounds: Number(arg('--max-rounds',String(SETTINGS.maxRounds))),
-    historyLimit: Number(arg('--history-limit',String(SETTINGS.historyLimit)))
-  });
+  const ip = arg('--ip', getPrivateIp());
+  const port = Number(arg('--port', '8080'));
+  const seeds = manyArgs('--seed');
+
+  const dist = await connectToCluster({ip, port, nodesFile, gid: 'all'});
+
+  try {
+    const result = await runDistributedCrawler({
+      dist, ip, port,
+      seeds: seeds.length ? seeds : [SETTINGS.seed],
+      articleCap: Number(arg('--article-cap', arg('--hard-cap', String(SETTINGS.maxPages)))),
+      maxRounds: Number(arg('--max-rounds', String(SETTINGS.maxRounds))),
+      historyLimit: Number(arg('--history-limit', String(SETTINGS.historyLimit))),
+    });
+  } catch (err) {
+    console.error('[crawl] failed:', err);
+  }
+
+  await shutdown(dist);
+  process.exit(0);
 }
+
+if (require.main === module) main();

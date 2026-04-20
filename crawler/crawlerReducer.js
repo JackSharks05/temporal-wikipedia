@@ -1,14 +1,3 @@
-/**
- * Crawler MR reducer — loaded on each worker via MR's reduceModule option.
- *
- * For each page key, picks the shallowest candidate depth from the mapper
- * emissions. If the key is new, writes it as pending. If the current
- * record is pending and we found a shallower path, patches the depth.
- *
- * ctx fields:
- *   crawlGid  crawl group id
- *   maxDepth  depth cutoff — records deeper than this are dropped
- */
 function reducePage(key, values, ctx) {
   const store = globalThis.distribution.local.store;
   let stuff = Array.isArray(values) ? values : [values];

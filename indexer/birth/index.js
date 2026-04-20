@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 
 const {normalizeError: normalizeStoreError} = require('../../lib/normalizeError');
-const {createMetrics} = require('../../lib/indexerMetrics');
-const {concurrentEach} = require('../../lib/concWrite');
+const {connectToCluster, shutdown, getArg} = require('../../lib/clusterConnect');
 
 const MAPPER_MODULE = require.resolve('./mapper');
 const REDUCER_MODULE = require.resolve('./reducer');
@@ -16,10 +15,6 @@ function buildDistributedIndex(gid, callback, options) {
     return callback(new Error(`group not found or missing mr: ${gid}`));
   }
 
-  const metrics = createMetrics('birth');
-  console.log(`[indexer] starting MapReduce (topN=${topN})...`);
-
-  const endMR = metrics.phase('mapreduce');
   service.mr.exec({
     keyPrefix: 'diff:',
     mapModule: MAPPER_MODULE,
@@ -28,71 +23,34 @@ function buildDistributedIndex(gid, callback, options) {
     reduceModule: REDUCER_MODULE,
     reduceExport: 'reducer',
     reduceContext: {topN},
-  }, (mrErr, results) => {
-    endMR();
+    storeResults: true,
+  }, (mrErr, result) => {
     if (mrErr) return callback(normalizeStoreError(mrErr));
-
-    if (!results || results.length === 0) {
-      console.log('[indexer] MapReduce produced no results');
-      metrics.report({results: 0, written: 0});
-      return callback(null, 0);
-    }
-
-    const entries = [];
-    for (const obj of results) {
-      if (!obj || typeof obj !== 'object') continue;
-      for (const [k, v] of Object.entries(obj)) entries.push({key: k, value: v});
-    }
-
-    console.log(`[indexer] MapReduce done, writing ${entries.length} entries...`);
-    const endWrite = metrics.phase('write');
-
-    concurrentEach(entries, (e, cb) => {
-      service.store.put(e.value, {key: e.key, gid}, (putErr) => cb(normalizeStoreError(putErr)));
-    }, (err, written) => {
-      endWrite();
-      if (err) return callback(err);
-      console.log(`[indexer] stored ${written} birth/death entries`);
-      metrics.report({results: results.length, written});
-      return callback(null, written);
-    });
+    const written = (result && result.written) || 0;
+    return callback(null, written);
   });
 }
 
 module.exports = {buildDistributedIndex};
 
-if (require.main === module) {
-  const {connectToCluster, shutdown, getArg} = require('../../lib/clusterConnect');
-
+async function main() {
   const gid = getArg('--gid', 'wiki');
   const topN = parseInt(getArg('--top-n', '10'), 10);
 
-  (async () => {
-    let dist;
-    try {
-      dist = await connectToCluster({
-        nodesFile: getArg('--nodes-file', null),
-        gid,
-        port: parseInt(getArg('--port', '8081'), 10),
-        ip: getArg('--ip', null),
-        propagate: true,
-      });
-    } catch (err) {
-      console.error('Failed to connect:', err.message);
-      process.exit(1);
-    }
+  const dist = await connectToCluster({
+    nodesFile: getArg('--nodes-file', null),
+    gid,
+    port: parseInt(getArg('--port', '8081'), 10),
+    ip: getArg('--ip', null),
+    propagate: true,
+  });
 
-    console.log(`[indexer] group: ${gid}`);
-
-    buildDistributedIndex(gid, async (err, count) => {
-      if (err) {
-        console.error('[indexer] Error:', err.message);
-        await shutdown(dist);
-        process.exit(1);
-      }
-      console.log(`[indexer] done. ${count} birth/death entries built.`);
-      await shutdown(dist);
-      process.exit(0);
-    }, {topN});
-  })();
+  buildDistributedIndex(gid, async (err, count) => {
+    if (err) console.error('[indexer] Error:', err.message);
+    else console.log(`[indexer] done. ${count} birth/death entries built.`);
+    await shutdown(dist);
+    process.exit(err ? 1 : 0);
+  }, {topN});
 }
+
+if (require.main === module) main();

@@ -147,9 +147,7 @@ function handleSearch(year, terms, done) {
         0,
       );
       for (const r of results) {
-        console.log(
-          `    ${r.title.padEnd(nameWidth)}  tfidf=${r.tfidf.toFixed(4)}  matches=${r.matches}/${terms.length}`,
-        );
+        console.log(`    ${r.title.padEnd(nameWidth)}  tfidf=${r.tfidf.toFixed(4)}`);
       }
       console.log();
     }
@@ -448,23 +446,21 @@ function dispatch(input, done) {
     return done();
   }
 
-  const birth = input.match(/^birth\s+(\d{4})$/i);
-  if (birth) return handleBirth(birth[1], done);
+  const parts = input.split(/\s+/);
+  const cmd = parts[0];
 
-  const death = input.match(/^death\s+(\d{4})$/i);
-  if (death) return handleDeath(death[1], done);
+  if (cmd === 'birth' && parts[1]) {
+    return handleBirth(parts[1], done);
+  }
 
-  const def = input.match(/^def\s+(\d{4})\s+(.+)$/i);
-  if (def) return handleDefinition(def[1], def[2].trim(), done);
+  if (cmd === 'death' && parts[1]) {
+    return handleDeath(parts[1], done);
+  }
 
-  const searchMatch = input.match(/^search\s+(\d{4})\s+(.+)$/i);
-  if (searchMatch) {
-    const terms = searchMatch[2]
-      .trim()
-      .toLowerCase()
-      .split(/\s+/)
-      .filter(Boolean);
-    return handleSearch(searchMatch[1], terms, done);
+  if (cmd === 'def' && parts.length >= 3) {
+    const year = parts[1];
+    const title = parts.slice(2).join(' ');
+    return handleDefinition(year, title, done);
   }
 
   const editsGlobal = input.match(/^edits-global\s+(\d{4})$/i);
@@ -495,13 +491,12 @@ function dispatch(input, done) {
     return handleRangeDiff(+range[1], +range[2], range[3].toLowerCase(), done);
   }
 
-  const single = input.match(/^(\d{4})\s+(\S+)$/);
-  if (single) {
-    return handleSingleYearDiff(single[1], single[2].toLowerCase(), done);
+  if (cmd.includes('-')) {
+    const [start, end] = cmd.split('-');
+    return handleRangeDiff(+start, +end, parts[1].toLowerCase(), done);
   }
 
-  console.log('Unknown command. Type "help" for options.');
-  done();
+  return handleSingleYearDiff(cmd, parts[1].toLowerCase(), done);
 }
 
 function startRepl() {
@@ -526,7 +521,7 @@ function startRepl() {
   });
 }
 
-(async () => {
+async function main() {
   try {
     _dist = await connectToCluster({
       nodesFile: getArg("--nodes-file", null),
@@ -540,4 +535,8 @@ function startRepl() {
   }
   console.log(`Connected, group: ${gid}`);
   startRepl();
-})();
+};
+
+if (require.main == module) {
+    main();
+}

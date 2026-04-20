@@ -1,17 +1,3 @@
-/**
- * Crawler MR mapper — loaded on each worker via MR's mapModule option.
- *
- * Per-page work: mark inflight, fetch + store the article, then emit
- * discovered links as new pending page records (reducer dedupes them).
- *
- * ctx fields:
- *   fetchPath     absolute path to crawler/wikiFetch module
- *   crawlGid      crawl group id (e.g. 'crawl')
- *   wikiGid       wiki group id (e.g. 'wiki')
- *   fetchOptions  options forwarded to fetcher.fetchAndStoreRevisions
- *   maxRetries    threshold before marking a page 'failed'
- *   pagePrefix    key prefix for emitted link records (e.g. 'page:')
- */
 function mapPage(key, value, ctx) {
   const req = globalThis.__workerRequire;
   const fetcher = req(ctx.fetchPath);

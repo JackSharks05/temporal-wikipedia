@@ -10,87 +10,74 @@ const ABBREV = new Set([
   'e.g', 'i.e', 'etc', 'vs', 'inc', 'ltd', 'co', 'corp', 'no',
 ]);
 
-function parseFirstSentence(wikitext) {
-  if (!wikitext) return null;
+function extractPlainText(wikitext) {
+  if (!wikitext) return '';
   let text = wikitext;
-
-  // HTML comments
-  text = text.replace(/<!--[\s\S]*?-->/g, '');
-
-  // <ref>...</ref> and self-closing <ref ... />
-  text = text.replace(/<ref\b[^>]*\/>/gi, '');
-  text = text.replace(/<ref\b[^>]*>[\s\S]*?<\/ref>/gi, '');
-
-  let prev;
-  do { prev = text; text = text.replace(/\{\{[^{}]*\}\}/g, ''); } while (text !== prev);
-
-  // Tables {|...|}
-  do { prev = text; text = text.replace(/\{\|[\s\S]*?\|\}/g, ''); } while (text !== prev);
-
-  // File / Image / Category links (nested caption-friendly)
-  do {
-    prev = text;
-    text = text.replace(
-        /\[\[(?:File|Image|Category):[^\[\]]*(?:\[\[[^\[\]]*\]\][^\[\]]*)*\]\]/gi, '');
-  } while (text !== prev);
-
-  // [[Link|text]] -> text,  [[Link]] -> Link
-  text = text.replace(/\[\[([^\[\]|]+)\|([^\[\]]+)\]\]/g, '$2');
-  text = text.replace(/\[\[([^\[\]]+)\]\]/g, '$1');
-
-  text = text.replace(/\[https?:\/\/\S+\s+([^\]]+)\]/g, '$1');
-  text = text.replace(/\[https?:\/\/\S+\]/g, '');
-
-  // HTML tags
+  text = text.replace(/\[\[Category:[^\]]+\]\]/gi, '');
+  text = text.replace(/\[\[(File|Image):[^\]]+\]\]/gi, '');
+  text = text.replace(/\{\{[^}]*\}\}/g, '');
+  text = text.replace(/<ref[^>]*>.*?<\/ref>/gs, '');
+  text = text.replace(/<ref[^>]*\/>/g, '');
   text = text.replace(/<[^>]+>/g, '');
+  text = text.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2');
+  text = text.replace(/\[\[([^\]]+)\]\]/g, '$1');
+  text = text.replace(/\[https?:\/\/[^\s\]]+\s*([^\]]*)\]/g, '$1');
+  text = text.replace(/'{2,5}/g, '');
+  text = text.replace(/\n{3,}/g, '\n\n');
+  return text.trim();
+}
 
-  text = text.replace(/'''''/g, '').replace(/'''/g, '').replace(/''/g, '');
-  text = text.replace(/\(\s*[;,\s]*\)/g, '');
+function extractFirstParagraph(text) {
+  if (!text) return null;
   const lines = text.split('\n');
-  let paragraph = '';
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    if (/^[#*:;|=!\-]/.test(line)) continue;
-    if (line.length < 10) continue;
-
-    paragraph = line;
-    for (let j = i + 1; j < lines.length; j++) {
-      const next = lines[j];
-      if (!next.trim()) break;
-      if (/^[=#*:;|]/.test(next.trim())) break;
-      paragraph += ' ' + next.trim();
-    }
-    break;
+  let paragraph = lines[0].trim();
+  for (let i = 1; i < lines.length; i++) {
+    const next = lines[i].trim();
+    if (!next || /^[=#*:;|]/.test(next)) break;
+    paragraph += ' ' + next;
   }
+  return paragraph.replace(/\s+/g, ' ').trim() || null;
+}
 
-  if (!paragraph) return null;
-  paragraph = paragraph.replace(/\s+/g, ' ').trim();
+function prevWord(paragraph, i) {
+  let start = i;
+  while (start > 0 && paragraph[start - 1] !== ' ') start--;
+  return paragraph.slice(start, i).toLowerCase();
+}
 
+function nextNonSpaceChar(paragraph, i) {
+  while (i < paragraph.length && paragraph[i] === ' ') i++;
+  return paragraph[i];
+}
+
+function extractFirstSentence(paragraph) {
   for (let i = 0; i < paragraph.length; i++) {
     const c = paragraph[i];
     if (c !== '.' && c !== '!' && c !== '?') continue;
 
-    const after = paragraph[i + 1];
-    if (after && after !== ' ') continue; // decimal or mid-abbrev
+    if (paragraph[i + 1] && paragraph[i + 1] !== ' ') continue;
 
-    let j = i + 2;
-    while (j < paragraph.length && paragraph[j] === ' ') j++;
-    if (j < paragraph.length && !/[A-Z"(\[]/.test(paragraph[j])) continue;
-    let ws = i;
-    while (ws > 0 && paragraph[ws - 1] !== ' ') ws--;
-    const word = paragraph.slice(ws, i).toLowerCase();
-    if (ABBREV.has(word)) continue;
+    const nextChar = nextNonSpaceChar(paragraph, i + 2);
+    if (nextChar && !/[A-Z"(\[]/.test(nextChar)) continue;
+
+    if (ABBREV.has(prevWord(paragraph, i))) continue;
 
     return paragraph.slice(0, i + 1).trim();
   }
+  return null;
+}
 
+function parseFirstSentence(wikitext) {
+  if (!wikitext) return null;
+  const stripped = extractPlainText(wikitext);
+  const paragraph = extractFirstParagraph(stripped);
+  if (!paragraph) return null;
+  const sentence = extractFirstSentence(paragraph);
+  if (sentence) return sentence;
   return paragraph.length > 500 ? paragraph.slice(0, 500) + '…' : paragraph;
 }
 
-/**
- * MR mapper: per article, emit one entry per year that has a year-end snapshot.
- */
+
 function mapArticle(key, data, ctx) {
   const gid = ctx && ctx.gid;
   if (!gid) {
@@ -117,7 +104,3 @@ function mapArticle(key, data, ctx) {
 }
 
 module.exports = {mapArticle, parseFirstSentence};
-
-if (require.main == module) {
-    print()
-}

@@ -25,8 +25,6 @@ async function runWorker(dist) {
   const store = util.promisify(storeYearEndState);
   const myNid = dist.util.id.getNID(dist.node.config);
 
-  console.log(`[worker] ${ip}:${port} polling coord ${COORD.ip}:${COORD.port}`);
-
   while (true) {
     let title;
     try {
@@ -35,43 +33,30 @@ async function runWorker(dist) {
           {node: COORD, service: ORCHESTRATOR_SERVICE_NAME, method: 'get_job'},
       );
     } catch (err) {
-      console.log(`[worker] get_job RPC failed: ${err.message}; retrying in 10s`);
       await sleep(10000);
       continue;
     }
-
-    if (title === null) {
-      console.log('[worker] coord reports job complete; staying up for MR');
-      await sleep(30000);
-      continue;
-    }
-    if (title === '__WAIT__') {
+    if (title === 'try again') {
       await sleep(5000);
       continue;
     }
 
-    const t0 = Date.now();
     let result;
     try {
       const snapshots = fetchYearEndSnapshots(title, YEARS, {});
       await store(GID, title, snapshots);
       const links = getOutgoingLinks(title);
-      const elapsedMs = Date.now() - t0;
-      result = {pageId: snapshots.pageId, links, elapsedMs};
-      console.log(`[worker] stored ${title} (pageId=${snapshots.pageId}, links=${links.length}, ${elapsedMs}ms)`);
+      result = {pageId: snapshots.pageId, links};
+      console.log(`[worker] stored ${title} (pageId=${snapshots.pageId}, links=${links.length})`);
     } catch (err) {
-      result = {error: err.message || String(err), elapsedMs: Date.now() - t0};
+      result = {error: err.message || String(err)};
       console.log(`[worker] failed ${title}: ${err.message}`);
     }
 
-    try {
-      await send(
-          [title, result],
-          {node: COORD, service: ORCHESTRATOR_SERVICE_NAME, method: 'notify'},
-      );
-    } catch (err) {
-      console.log(`[worker] notify RPC failed for ${title}: ${err.message};`);
-    }
+    await send(
+        [title, result],
+        {node: COORD, service: ORCHESTRATOR_SERVICE_NAME, method: 'notify'},
+    );
   }
 }
 
@@ -80,6 +65,5 @@ async function runWorker(dist) {
   await runWorker(dist);
   process.exit(0);
 })().catch((err) => {
-  console.error('[worker] fatal:', err);
   process.exit(1);
 });

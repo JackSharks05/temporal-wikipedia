@@ -3,16 +3,7 @@
 const distribution = require('../distribution');
 const {processDump} = require('../crawler/crawler');
 const {storeArticle} = require('./wikiStore');
-
-function getArg(name,fallback = null) {
-  const index = process.argv.indexOf(name);
-  if (index === -1 || index + 1 >= process.argv.length) return fallback;
-  return process.argv[index + 1];
-}
-
-function hasArg(name) {
-  return process.argv.includes(name);
-}
+const {getArg, hasArg} = require('../lib/clusterConnect');
 
 const dumpPath = process.argv[2];
 if (!dumpPath || dumpPath.startsWith('--')) {

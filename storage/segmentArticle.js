@@ -138,4 +138,4 @@ function segmentArticle(article,segmentSize = DEFAULT_SEGMENT_SIZE) {
   return {titleRecord:{pageId,title},meta,manifest,segments};
 }
 
-module.exports = {DEFAULT_SEGMENT_SIZE,normalizeTitle,segmentArticle};
+module.exports = {DEFAULT_SEGMENT_SIZE,normalizeTitle,segmentArticle,createSegment};

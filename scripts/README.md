@@ -1,0 +1,12 @@
+node scripts/runCrawl.js \
+  --nodes-file nodes.txt \
+  --seed "United States" \
+  --seed "Artificial Intelligence" \
+  --seed "COVID-19 pandemic" \
+  --seed "Climate Change" \
+  --seed "Evolution" \
+  --seed "Internet" \
+  --seed "Distributed computing" \
+  --article-cap 10000 \
+  --max-rounds 300 \
+  --history-limit 100000

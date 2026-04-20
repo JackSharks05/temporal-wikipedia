@@ -22,13 +22,50 @@
 
 /**
  * @typedef {Object} MRConfig
- * @property {Mapper} map
- * @property {Reducer} reduce
- * @property {string[]} keys
+ * @property {Mapper} [map]
+ * @property {Reducer} [reduce]
+ * @property {string} [mapModule]    absolute path to a module exporting the mapper
+ * @property {string} [mapExport]    exported name (default: 'map')
+ * @property {any}    [mapContext]   JSON-serializable ctx passed as 3rd arg
+ * @property {string} [reduceModule] absolute path to a module exporting the reducer
+ * @property {string} [reduceExport] exported name (default: 'reduce')
+ * @property {any}    [reduceContext]
+ * @property {string[]} [keys]
+ * @property {string} [keyPrefix]
+ * @property {boolean} [storeResults] if true, workers write reduced outputs directly
+ *   to the distributed store (keyed by the reducer's output key) instead of shipping
+ *   them back to the coordinator. Avoids OOM on large reduce outputs.
  *
  * @typedef {Object} Mr
  * @property {(configuration: MRConfig, callback: Callback) => void} exec
  */
+
+
+function makeModuleShim(kind, modulePath, exportName, ctx) {
+  const modLit = JSON.stringify(modulePath);
+  const expLit = JSON.stringify(exportName);
+  const ctxLit = JSON.stringify(ctx === undefined ? null : ctx);
+  const payloadArg = kind === 'map' ? 'value' : 'values';
+  const emptyReturn = kind === 'map' ? '[]' : 'null';
+  const body = `
+    try {
+      var req = globalThis.__workerRequire;
+      if (typeof req !== 'function') {
+        throw new Error('worker missing globalThis.__workerRequire');
+      }
+      var impl = req(${modLit});
+      var fn = impl && impl[${expLit}];
+      if (typeof fn !== 'function') {
+        throw new Error('mr shim: ' + ${modLit} + ' does not export ' + ${expLit});
+      }
+      return fn(key, ${payloadArg}, ${ctxLit});
+    } catch (err) {
+      console.log('[mr:${kind}:shim] error for key=' + key + ': ' + (err && err.message));
+      return ${emptyReturn};
+    }
+  `;
+  return new Function('key', payloadArg, body);
+}
 
 /**
  * @param {Config} config
@@ -58,19 +95,28 @@ function mr(config) {
 
     const name = 'mr-' + id.getID(Date.now() + Math.random()).substring(0, 10);
 
-    dist.local.groups.get(context.gid,(e,group) => {
+    dist.local.groups.get(context.gid, (e, group) => {
       if (e) {
-        return callback(e,null);
+        return callback(e, null);
       }
 
       const expected = Object.keys(group).length;
 
-      globalThis.__mr[name] = {gid:context.gid,cb:callback,expected:expected,phase:'map',count:0,results:[]};
+      globalThis.__mr[name] = {
+        gid: context.gid,
+        cb: callback,
+        expected: expected,
+        phase: 'map',
+        count: 0,
+        results: [],
+        written: 0,
+        storeResults: !!configuration.storeResults,
+      };
 
       const service = {
-        setup: function(state,cb) {
+        setup: function(state, cb) {
           if (typeof cb !== 'function') {
-            cb = () =>{};
+            cb = () => {};
           }
 
           if (!globalThis.__mr) {
@@ -95,41 +141,55 @@ function mr(config) {
           if (core && core.phase === 'reduce' && Array.isArray(core.out)) {
             job.results = job.results.concat(core.out);
           }
+          if (core && core.phase === 'reduce' && typeof core.written === 'number') {
+            job.written = (job.written || 0) + core.written;
+          }
 
           job.count += 1;
 
           if (job.count < job.expected) {
-            return cb(null,core);
+            console.log('[mr:' + name + '] ' + job.phase + ': ' + job.count + '/' + job.expected + ' workers done');
+            return cb(null, core);
           }
 
           if (job.phase === 'map') {
+            console.log('[mr:' + name + '] all ' + job.expected + ' workers finished map, starting shuffle');
             job.phase = 'shuffle';
             job.count = 0;
             globalThis.distribution[job.gid].comm.send([name], {service: name, method: 'shuffle'}, () => {});
-            return cb(null,core);
+            return cb(null, core);
           }
 
           if (job.phase === 'shuffle') {
+            console.log('[mr:' + name + '] all workers finished shuffle, starting reduce');
             job.phase = 'reduce';
             job.count = 0;
-            globalThis.distribution[job.gid].comm.send([name],{service: name, method: 'reduce'},() => {});
-            return cb(null,core);
+            globalThis.distribution[job.gid].comm.send([name], {service: name, method: 'reduce'}, () => {});
+            return cb(null, core);
           }
 
           const done = job.cb;
           const out = job.results.slice();
+          const written = job.written || 0;
+          const finalResult = job.storeResults ? {written} : out;
 
-          globalThis.distribution[job.gid].comm.send([name],{service: name, method: 'cleanup'},() => {
-                globalThis.distribution[job.gid].routes.rem(name,() => {
-                  globalThis.distribution.local.routes.rem(name,() => {
+          console.log('[mr:' + name + '] all workers finished reduce, cleaning up (' +
+              (job.storeResults ? written + ' written' : out.length + ' results') + ')');
+
+          globalThis.distribution[job.gid].comm.send(
+              [name],
+              {service: name, method: 'cleanup'},
+              () => {
+                globalThis.distribution[job.gid].routes.rem(name, () => {
+                  globalThis.distribution.local.routes.rem(name, () => {
                     delete globalThis.__mr[name];
-                    return done(null, out);
+                    return done(null, finalResult);
                   });
                 });
               },
           );
 
-          return cb(null,core);
+          return cb(null, core);
         },
 
         map: function(name, cb) {
@@ -144,60 +204,75 @@ function mr(config) {
             return cb(new Error('mr.map: missing job'), null);
           }
 
-          let i = 0;
-
-
-          const finish = () => {
-            return dist.local.comm.send([name,{phase:'map'}],{node: job.coord, service: name, method: 'notify'},() => cb(null, name));
+          const finish = (count) => {
+            console.log('[mr] map done: ' + count + ' keys processed');
+            return dist.local.comm.send(
+                [name, {phase: 'map'}],
+                {node: job.coord, service: name, method: 'notify'},
+                () => cb(null, name),
+            );
           };
 
-          const nextKey = () => {
-            if (i >= job.keys.length) {
-              return finish();
+          dist.local.store.get({gid: job.gid, key: null}, (e, localKeys) => {
+            if (e || !Array.isArray(localKeys)) localKeys = [];
+
+            let keys;
+            if (job.keyPrefix) {
+              keys = localKeys.filter((k) => typeof k === 'string' && k.startsWith(job.keyPrefix));
+            } else if (job.keys && job.keys.length > 0) {
+              const localSet = new Set(localKeys);
+              keys = job.keys.filter((k) => localSet.has(k));
+            } else {
+              keys = localKeys;
             }
 
-            const key = job.keys[i];
-            i += 1;
+            console.log('[mr] map starting: ' + keys.length + ' local keys (of ' + localKeys.length + ' total local)');
 
-            dist.local.store.get({gid:job.gid,key:key},(e,value) => {
-              if (e) {
-                return nextKey();
+            let i = 0;
+
+            const nextKey = () => {
+              if (i >= keys.length) {
+                return finish(keys.length);
               }
 
-              let mapped = [];
-              try {
-                mapped = job.map(key,value);
-              } catch (err) {
-                mapped = [];
+              if (i > 0 && i % 100 === 0) {
+                console.log('[mr] map progress: ' + i + '/' + keys.length);
               }
 
-              if (!Array.isArray(mapped)) {
-                if (mapped && typeof mapped === 'object') {
-                  mapped = [mapped];
-                } else {
-                  mapped = [];
-                }
-              }
+              const key = keys[i];
+              i += 1;
 
-              let j = 0;
-
-              const saveOne = () => {
-                if (j >= mapped.length) {
+              dist.local.store.get({gid: job.gid, key: key}, (e, value) => {
+                if (e) {
                   return nextKey();
                 }
 
-                const outKey = key+'-' +j;
-                const outVal = mapped[j];
-                j += 1;
+                let mapped = [];
+                try {
+                  mapped = job.map(key, value);
+                } catch (err) {
+                  mapped = [];
+                }
 
-                dist.local.mem.put(outVal,{gid:job.mapGid,key:outKey},() => {
-                  return saveOne();
+                if (!Array.isArray(mapped)) {
+                  if (mapped && typeof mapped === 'object') {
+                    mapped = [mapped];
+                  } else {
+                    mapped = [];
+                  }
+                }
+
+                if (mapped.length === 0) {
+                  return nextKey();
+                }
+
+                dist.local.store.put(mapped, {gid: job.mapGid, key: key}, () => {
+                  return nextKey();
                 });
-              };
-              return saveOne();
-            });
-          };
-          return nextKey();
+              });
+            };
+            return nextKey();
+          });
         },
 
         shuffle: function(name, cb) {
@@ -209,115 +284,182 @@ function mr(config) {
           const job = globalThis.__mr && globalThis.__mr[name];
 
           if (!job) {
-            return cb(new Error('mr.shuffle: missing job'),null);
+            return cb(new Error('mr.shuffle: missing job'), null);
           }
 
           const finish = () => {
-            return dist.local.comm.send([name,{phase:'shuffle'}],{node:job.coord,service:name,method:'notify'},() => cb(null,name));
+            console.log('[mr] shuffle done');
+            return dist.local.comm.send(
+                [name, {phase: 'shuffle'}],
+                {node: job.coord, service: name, method: 'notify'},
+                () => cb(null, name),
+            );
           };
 
-          dist.local.mem.get({gid:job.mapGid,key:null},(e,mapKeys) => {
-            if (e|| !Array.isArray(mapKeys) || mapKeys.length === 0) {
+          dist.local.store.get({gid: job.mapGid, key: null}, (e, mapKeys) => {
+            if (e || !Array.isArray(mapKeys) || mapKeys.length === 0) {
+              console.log('[mr] shuffle: no mapped entries on this worker');
               return finish();
             }
 
+            console.log('[mr] shuffle: ' + mapKeys.length + ' mapped entries to redistribute');
+
+            const states = [];
+            const configs = [];
             let i = 0;
 
-            const nextMapped = () => {
+            const scanNext = () => {
               if (i >= mapKeys.length) {
-                return finish();
+                if (states.length === 0) {
+                  console.log('[mr] shuffle: scan complete, 0 emissions, skipping batch');
+                  return finish();
+                }
+                console.log('[mr] shuffle: scan complete, ' + states.length + ' emissions, sending appendBatch');
+                const t0 = Date.now();
+                dist[job.gid].mem.appendBatch(states, configs, (err, res) => {
+                  if (err) {
+                    console.log('[mr] shuffle: appendBatch failed: ' + (err.message || err));
+                  } else {
+                    console.log('[mr] shuffle: appendBatch done in ' +
+                        (Date.now() - t0) + 'ms (' + (res && res.appended) + ' appended)');
+                  }
+                  return finish();
+                });
+                return;
+              }
+
+              if (i > 0 && i % 500 === 0) {
+                console.log('[mr] shuffle progress: ' + i + '/' + mapKeys.length);
               }
 
               const mapKey = mapKeys[i];
               i += 1;
 
-              dist.local.mem.get({gid:job.mapGid,key:mapKey}, (ge, obj) => {
-                if (ge || !obj || typeof obj !== 'object') {
-                  return nextMapped();
+              dist.local.store.get({gid: job.mapGid, key: mapKey}, (ge, mapped) => {
+                if (ge || !Array.isArray(mapped) || mapped.length === 0) {
+                  return scanNext();
                 }
-
-                const emitted = Object.keys(obj);
-                let j = 0;
-
-                const appendOne = () => {
-                  if (j >= emitted.length) {
-                    return nextMapped();
+                for (const obj of mapped) {
+                  if (!obj || typeof obj !== 'object') continue;
+                  for (const emitKey of Object.keys(obj)) {
+                    states.push(obj[emitKey]);
+                    configs.push({gid: job.shuffleGid, key: emitKey});
                   }
-
-                  const emitKey = emitted[j];
-                  const emitVal = obj[emitKey];
-                  j += 1;
-
-                  dist[job.gid].mem.append(emitVal,{gid:job.shuffleGid,key:emitKey},() => appendOne());
-                };
-                return appendOne();
+                }
+                return scanNext();
               });
             };
-            return nextMapped();
+            return scanNext();
           });
         },
 
-        reduce: function(name,cb) {
+        reduce: function(name, cb) {
           if (typeof cb !== 'function') {
             cb = () => {};
           }
-
 
           const dist = globalThis.distribution;
           const job = globalThis.__mr && globalThis.__mr[name];
 
           if (!job) {
-            return cb(new Error('mr.reduce: missing job'),null);
+            return cb(new Error('mr.reduce: missing job'), null);
           }
 
           const out = [];
+          let written = 0;
+          const storeResults = !!job.storeResults;
 
           const finish = () => {
-            return dist.local.comm.send([name,{phase:'reduce',out:out}],{node:job.coord,service:name,method:'notify'},() => cb(null,out),);
+            const msg = storeResults
+              ? 'wrote ' + written + ' entries directly to store'
+              : out.length + ' reduced entries emitted';
+            console.log('[mr] reduce done: ' + msg);
+            return dist.local.comm.send(
+                [name, {phase: 'reduce', out: out, written: written}],
+                {node: job.coord, service: name, method: 'notify'},
+                () => cb(null, out),
+            );
           };
 
-          dist.local.mem.get({gid:job.shuffleGid,key:null},(e,reduceKeys) => {
+          dist.local.mem.get({gid: job.shuffleGid, key: null}, (e, reduceKeys) => {
             if (e || !Array.isArray(reduceKeys) || reduceKeys.length === 0) {
+              console.log('[mr] reduce: no keys on this worker');
               return finish();
             }
 
-            let i = 0;
+            console.log('[mr] reduce: ' + reduceKeys.length + ' keys to reduce');
 
-            const nextReduce = () => {
-              if (i >= reduceKeys.length) {
-                return finish();
+            const toWrite = [];
+
+            for (let i = 0; i < reduceKeys.length; i++) {
+              if (i > 0 && i % 500 === 0) {
+                console.log('[mr] reduce progress: ' + i + '/' + reduceKeys.length);
               }
 
               const reduceKey = reduceKeys[i];
-              i += 1;
-
-              dist.local.mem.get({gid:job.shuffleGid,key:reduceKey},(ge,values) => {
-                if (ge) {
-                  return nextReduce();
-                }
-
-                if (!Array.isArray(values)) {
-                  values = [values];
-                }
-
-                let reduced = null;
-                try {
-                  reduced = job.reduce(reduceKey,values);
-                } catch (err) {
-                  reduced = null;
-                }
-
-                if (Array.isArray(reduced)) {
-                  reduced.forEach((x) => out.push(x));
-                } else if (reduced && typeof reduced === 'object') {
-                  out.push(reduced);
-                }
-
-                return nextReduce();
+              let values = null;
+              let getErr = null;
+              dist.local.mem.get({gid: job.shuffleGid, key: reduceKey}, (ge, v) => {
+                getErr = ge;
+                values = v;
               });
-            };
+              if (getErr) continue;
+              if (!Array.isArray(values)) values = [values];
 
-            return nextReduce();
+              let reduced = null;
+              try {
+                reduced = job.reduce(reduceKey, values);
+              } catch (err) {
+                reduced = null;
+              }
+
+              const emissions = Array.isArray(reduced)
+                ? reduced
+                : (reduced && typeof reduced === 'object' ? [reduced] : []);
+
+              if (!storeResults) {
+                for (const x of emissions) out.push(x);
+                continue;
+              }
+
+              for (const obj of emissions) {
+                if (!obj || typeof obj !== 'object') continue;
+                for (const k of Object.keys(obj)) {
+                  toWrite.push([k, obj[k]]);
+                }
+              }
+            }
+
+            if (!storeResults || toWrite.length === 0) {
+              return finish();
+            }
+
+            console.log('[mr] reduce: writing ' + toWrite.length + ' entries directly to store');
+
+            const CONC = 64;
+            let idx = 0;
+            let inFlight = 0;
+            let done = false;
+
+            const pump = () => {
+              while (!done && inFlight < CONC && idx < toWrite.length) {
+                const [k, v] = toWrite[idx++];
+                inFlight++;
+                dist[job.gid].store.put(v, {key: k, gid: job.gid}, () => {
+                  inFlight--;
+                  written++;
+                  if (written % 5000 === 0) {
+                    console.log('[mr] reduce write progress: ' + written + '/' + toWrite.length);
+                  }
+                  if (idx >= toWrite.length && inFlight === 0 && !done) {
+                    done = true;
+                    return finish();
+                  }
+                  pump();
+                });
+              }
+            };
+            pump();
           });
         },
 
@@ -326,43 +468,97 @@ function mr(config) {
             cb = () => {};
           }
 
+          const job = globalThis.__mr && globalThis.__mr[name];
+          if (job && job.mapGid) {
+            try {
+              const req = globalThis.__workerRequire;
+              if (typeof req !== 'function') {
+                throw new Error('worker missing globalThis.__workerRequire');
+              }
+              const path = req('path');
+              const fs = req('fs');
+              const nid = globalThis.distribution.util.id.getNID(
+                  globalThis.distribution.node.config,
+              );
+              const storeRoot = path.join(process.cwd(), 'store');
+              const mapDir = path.join(storeRoot, nid, job.mapGid);
+              if (fs.existsSync(mapDir)) {
+                fs.rmSync(mapDir, {recursive: true, force: true});
+              }
+            } catch (cleanErr) {
+              console.log('[mr] cleanup warning: ' + cleanErr.message);
+            }
+          }
+
+          if (job && job.shuffleGid) {
+            try {
+              const mem = globalThis.distribution.local.mem;
+              mem.get({gid: job.shuffleGid, key: null}, (ge, keys) => {
+                if (ge || !Array.isArray(keys) || keys.length === 0) return;
+                for (const k of keys) {
+                  mem.del({gid: job.shuffleGid, key: k}, () => {});
+                }
+              });
+            } catch (memErr) {
+              console.log('[mr] cleanup mem warning: ' + memErr.message);
+            }
+          }
+
           if (globalThis.__mr && globalThis.__mr[name]) {
             delete globalThis.__mr[name];
           }
 
-          return cb(null,name);
+          return cb(null, name);
         },
       };
 
-      dist.local.routes.put(service,name,(e1) => {
+      dist.local.routes.put(service, name, (e1) => {
         if (e1) {
-          return callback(e1,null);
+          return callback(e1, null);
         }
 
-        dist[context.gid].routes.put(service,name,(e2) => {
+        dist[context.gid].routes.put(service, name, (e2) => {
           if (e2 instanceof Error) {
-            return callback(e2,null);
+            return callback(e2, null);
           }
 
           let keys = [];
-
-          if (Array.isArray(configuration.keys)) {
+          if (!configuration.keyPrefix && Array.isArray(configuration.keys)) {
             keys = configuration.keys;
           }
+
+          const mapFn = configuration.mapModule
+            ? makeModuleShim('map', configuration.mapModule,
+                configuration.mapExport || 'map', configuration.mapContext)
+            : configuration.map;
+
+          const reduceFn = configuration.reduceModule
+            ? makeModuleShim('reduce', configuration.reduceModule,
+                configuration.reduceExport || 'reduce', configuration.reduceContext)
+            : configuration.reduce;
 
           const state = {
             name: name,
             gid: context.gid,
             keys: keys,
-            map: configuration.map,
-            reduce: configuration.reduce,
+            keyPrefix: configuration.keyPrefix || null,
+            map: mapFn,
+            reduce: reduceFn,
             coord: dist.node.config,
             mapGid: name + '-map',
             shuffleGid: name + '-shuffle',
+            storeResults: !!configuration.storeResults,
           };
 
-          dist[context.gid].comm.send([state],{service:name,method:'setup'},() => {
-                dist[context.gid].comm.send([name],{service: name, method: 'map'},() => {},);
+          dist[context.gid].comm.send(
+              [state],
+              {service: name, method: 'setup'},
+              () => {
+                dist[context.gid].comm.send(
+                    [name],
+                    {service: name, method: 'map'},
+                    () => {},
+                );
               },
           );
         });

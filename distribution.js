@@ -10,6 +10,12 @@
 function bootstrap(config) {
   const distribution = {};
 
+  // Expose this module's `require` so MR map/reduce functions (rebuilt via
+  // `new Function(...)` on workers and therefore lacking module-scope
+  // `require`) can still load Node modules and project files. Set before any
+  // services so every boot path gets it, not just `scripts/startWorker.js`.
+  globalThis.__workerRequire = require;
+
   // @ts-ignore This is the first time globalThis.distribution is being initialized, so the object does not have all the necessary properties.
   globalThis.distribution = distribution;
   distribution.util = require('./distribution/util/util.js');

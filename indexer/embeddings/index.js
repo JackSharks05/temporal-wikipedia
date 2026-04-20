@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * embeddings indexer — distributed MapReduce over article-meta keys.
+ * embeddings indexer — distributed MapReduce over cooccurrence keys.
  */
 
 const {
@@ -14,7 +14,10 @@ const REDUCER_MODULE = require.resolve("./reducer");
 
 function buildDistributedIndex(gid, callback, options) {
   if (typeof callback !== "function") callback = () => {};
-  const topN = (options && options.topN) || 3;
+  const dimension = (options && options.dimension) || 64;
+  const maxNeighborsPerWord = (options && options.maxNeighborsPerWord) || 80;
+  const minCount = (options && options.minCount) || 1;
+  const topFeaturesCount = (options && options.topFeaturesCount) || 12;
 
   const service = globalThis.distribution && globalThis.distribution[gid];
   if (!service || !service.store || !service.mr) {
@@ -22,18 +25,20 @@ function buildDistributedIndex(gid, callback, options) {
   }
 
   const metrics = createMetrics("embeddings");
-  console.log(`[indexer] starting MapReduce (topN=${topN})...`);
+  console.log(
+    `[indexer] starting MapReduce (dimension=${dimension}, maxNeighbors=${maxNeighborsPerWord})...`,
+  );
 
   const endMR = metrics.phase("mapreduce");
   service.mr.exec(
     {
-      keyPrefix: "article-year-history:",
+      keyPrefix: "cooc:",
       mapModule: MAPPER_MODULE,
-      mapExport: "mapArticle",
-      mapContext: { gid },
+      mapExport: "mapCooccurrenceForEmbedding",
+      mapContext: { gid, maxNeighborsPerWord, minCount },
       reduceModule: REDUCER_MODULE,
-      reduceExport: "reduceYearWord",
-      reduceContext: { topN },
+      reduceExport: "reduceYearWordEmbedding",
+      reduceContext: { dimension, topFeaturesCount },
       storeResults: true,
     },
     (mrErr, result) => {
@@ -42,7 +47,7 @@ function buildDistributedIndex(gid, callback, options) {
 
       const written = (result && result.written) || 0;
       console.log(
-        `[indexer] stored ${written} diff:year:word entries (written during reduce)`,
+        `[indexer] stored ${written} embedding entries (written during reduce)`,
       );
       metrics.report({ written });
       return callback(null, written);
@@ -60,7 +65,10 @@ if (require.main === module) {
   } = require("../../lib/clusterConnect");
 
   const gid = getArg("--gid", "wiki");
-  const topN = parseInt(getArg("--top-n", "10"), 10);
+  const dimension = parseInt(getArg("--dimension", "64"), 10);
+  const maxNeighborsPerWord = parseInt(getArg("--max-neighbors", "80"), 10);
+  const minCount = parseInt(getArg("--min-count", "1"), 10);
+  const topFeaturesCount = parseInt(getArg("--top-features", "12"), 10);
 
   (async () => {
     let dist;
@@ -87,11 +95,11 @@ if (require.main === module) {
           await shutdown(dist);
           process.exit(1);
         }
-        console.log(`[indexer] done. ${count} year:word index entries built.`);
+        console.log(`[indexer] done. ${count} embedding index entries built.`);
         await shutdown(dist);
         process.exit(0);
       },
-      { topN },
+      { dimension, maxNeighborsPerWord, minCount, topFeaturesCount },
     );
   })();
 }

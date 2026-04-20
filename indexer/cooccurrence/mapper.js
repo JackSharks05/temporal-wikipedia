@@ -40,7 +40,7 @@ function mapYearCooccurrence(key, data, ctx) {
     for (const [anchor, countsObj] of Object.entries(counts)) {
       emitted.push({
         [`cooc:${year}:${anchor}`]: {
-          neighbors: counts[obj]
+          neighbors: countsObj,
         },
       });
     }

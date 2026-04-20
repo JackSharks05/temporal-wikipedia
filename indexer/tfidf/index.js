@@ -46,7 +46,7 @@ module.exports = {buildTfIdfIndex};
 if (require.main === module) {
   const {connectToCluster, shutdown, getArg} = require('../../lib/clusterConnect');
   const gid = getArg('--gid', 'wiki');
-  const articleCount = parseInt(getArg('--article-count', '170'), 10);
+  const articleCount = parseInt(getArg('--article-count', '2400'), 10);
   const cap = parseInt(getArg('--cap', '25'), 10);
 
   (async () => {

@@ -2,7 +2,7 @@ const fs = require('fs');
 const {connectToCluster, getArg, getPrivateIp, hasArg} = require('../lib/clusterConnect');
 const {normalizeTitle} = require('../storage/segmentArticle');
 
-const DEFAULT_MAX_PAGES = 100000;
+const DEFAULT_MAX_PAGES = 1000;
 const DEFAULT_MAX_QUEUE_SIZE = 1_000_000;
 const DEFAULT_CHECKPOINT_INTERVAL_MS = 30_000;
 const DEFAULT_SAVE_PATH = 'crawl_save.json';
@@ -12,16 +12,11 @@ class Orchestrator {
     this.maxPages = options.maxPages || DEFAULT_MAX_PAGES;
     this.maxQueueSize = options.maxQueueSize || DEFAULT_MAX_QUEUE_SIZE;
     this.savePath = options.savePath || DEFAULT_SAVE_PATH;
-    this.maxRecent = options.maxRecent || 100;
 
     this.queue = [];
     this.queuedSet = new Set();
     this.visited = new Set();
     this.failed = new Set();
-
-    this.startedAt = Date.now();
-    this.completedCount = 0;    
-    this.recentCompletions = []; 
 
     const restored = options.fresh ? false : this.restore();
     if (!restored) {
@@ -40,7 +35,7 @@ class Orchestrator {
     this.queuedSet.add(k);
   }
 
-  getJob(nid) {
+  getJob() {
     if (this.visited.size >= this.maxPages) return null;
 
     while (this.queue.length > 0) {
@@ -64,51 +59,9 @@ class Orchestrator {
     }
 
     this.visited.add(k);
-
-    this.completedCount += 1;
-    const elapsedMs = (result && typeof result.elapsedMs === 'number') ? result.elapsedMs : null;
-    this.recentCompletions.push({at: Date.now(), elapsedMs});
-    if (this.recentCompletions.length > this.maxRecent) this.recentCompletions.shift();
-
     if (result && Array.isArray(result.links)) {
       for (const link of result.links) this.enqueue(link);
     }
-  }
-
-  perfSnapshot() {
-    const uptimeMs = Date.now() - this.startedAt;
-    const overallRate = uptimeMs > 0 ? this.completedCount / (uptimeMs / 1000) : 0;
-
-    let recentRate = 0;
-    let avgLatencyMs = 0;
-    let latencySampleSize = 0;
-    if (this.recentCompletions.length >= 2) {
-      const oldest = this.recentCompletions[0].at;
-      const newest = this.recentCompletions[this.recentCompletions.length - 1].at;
-      const spanMs = newest - oldest;
-      if (spanMs > 0) {
-        recentRate = (this.recentCompletions.length - 1) / (spanMs / 1000);
-      }
-    }
-    const withLatency = this.recentCompletions.filter((r) => r.elapsedMs != null);
-    latencySampleSize = withLatency.length;
-    if (latencySampleSize > 0) {
-      avgLatencyMs = withLatency.reduce((s, r) => s + r.elapsedMs, 0) / latencySampleSize;
-    }
-
-    const remaining = Math.max(0, this.maxPages - this.completedCount);
-    const rateForEta = recentRate > 0 ? recentRate : overallRate;
-    const etaSec = rateForEta > 0 ? Math.round(remaining / rateForEta) : null;
-
-    return {
-      uptimeSec: Math.round(uptimeMs / 1000),
-      completed: this.completedCount,
-      overallRatePerSec: Number(overallRate.toFixed(2)),
-      recentRatePerSec: Number(recentRate.toFixed(2)),
-      avgLatencyMs: Math.round(avgLatencyMs),
-      latencySampleSize,
-      etaSec,
-    };
   }
 
   status() {
@@ -117,7 +70,6 @@ class Orchestrator {
       queued: this.queue.length,
       failed: this.failed.size,
       cap: this.maxPages,
-      ...this.perfSnapshot(),
     };
   }
 
@@ -134,15 +86,9 @@ class Orchestrator {
     };
     const tmp = this.savePath + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(state, null, 2));
-    fs.renameSync(tmp, this.savePath); 
+    fs.renameSync(tmp, this.savePath);
     const s = this.status();
-    const etaStr = s.etaSec != null ? `eta ~${Math.round(s.etaSec / 60)}m` : 'eta n/a';
-    console.log(
-        `[orch] checkpoint: ${s.completed}/${s.cap} completed (${s.visited} dispatched, ${s.queued} queued, ${s.failed} failed) | ` +
-        `throughput ${s.recentRatePerSec}/s recent (${s.overallRatePerSec}/s overall) | ` +
-        `latency ${s.avgLatencyMs}ms avg over ${s.latencySampleSize} samples | ` +
-        `uptime ${s.uptimeSec}s | ${etaStr}`,
-    );
+    console.log(`[orch] checkpoint: ${s.visited}/${s.cap} visited, ${s.queued} queued, ${s.failed} failed`);
   }
 
   restore() {
@@ -163,8 +109,6 @@ class Orchestrator {
 }
 
 module.exports = {Orchestrator};
-
-// === CLI entry ===
 
 if (require.main === module) {
   (async () => {
@@ -196,7 +140,7 @@ if (require.main === module) {
     const service = {
       get_job(nid, callback) {
         try {
-          callback(null, orch.getJob(nid));
+          callback(null, orch.getJob());
         } catch (err) {
           callback(err);
         }

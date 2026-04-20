@@ -5,7 +5,6 @@
  */
 
 const {normalizeError: normalizeStoreError} = require('../../lib/normalizeError');
-const {createMetrics} = require('../../lib/indexerMetrics');
 
 const MAPPER_MODULE = require.resolve('./mapper');
 const REDUCER_MODULE = require.resolve('./reducer');
@@ -19,10 +18,8 @@ function buildDistributedIndex(gid, callback, options) {
     return callback(new Error(`group not found or missing mr: ${gid}`));
   }
 
-  const metrics = createMetrics('temporalDiff');
   console.log(`[indexer] starting MapReduce (topN=${topN})...`);
 
-  const endMR = metrics.phase('mapreduce');
   service.mr.exec({
     keyPrefix: 'article-year-history:',
     mapModule: MAPPER_MODULE,
@@ -33,12 +30,10 @@ function buildDistributedIndex(gid, callback, options) {
     reduceContext: {topN},
     storeResults: true,
   }, (mrErr, result) => {
-    endMR();
     if (mrErr) return callback(normalizeStoreError(mrErr));
 
     const written = (result && result.written) || 0;
     console.log(`[indexer] stored ${written} diff:year:word entries (written during reduce)`);
-    metrics.report({written});
     return callback(null, written);
   });
 }

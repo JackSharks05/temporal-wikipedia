@@ -1,6 +1,6 @@
 // https://en.wikipedia.org/w/api.php?action=query&titles=Pluto&prop=revisions&rvlimit=1&rvprop=content|timestamp|ids&rvdir=older&rvstart=2010-08-25T00:00:00Z&format=json
 
-const {api, revisionContent, normalizeDisplayTitle, fetchCurrentPageHtml, extractBodyArticleLinksFromHtml,} = require('../crawler/wikiFetch');
+const {api, revisionContent, normalizeDisplayTitle, fetchCurrentPageHtml, extractBodyArticleLinksFromHtml,} = require('./wikiFetch');
 const {getArg} = require('../lib/clusterConnect');
 
 function fetchYearEndSnapshots(title, years, opts) {

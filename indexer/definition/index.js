@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 const {normalizeError: normalizeStoreError} = require('../../lib/normalizeError');
-const {createMetrics} = require('../../lib/indexerMetrics');
 const {concurrentEach} = require('../../lib/concWrite');
 
 const MAPPER_MODULE = require.resolve('./mapper');
@@ -15,10 +14,8 @@ function buildDistributedIndex(gid, callback, options) {
     return callback(new Error(`group not found or missing mr: ${gid}`));
   }
 
-  const metrics = createMetrics('definition');
   console.log('[indexer] starting MapReduce...');
 
-  const endMR = metrics.phase('mapreduce');
   service.mr.exec({
     keyPrefix: 'article-year-history:',
     mapModule: MAPPER_MODULE,
@@ -28,12 +25,10 @@ function buildDistributedIndex(gid, callback, options) {
     reduceExport: 'reduceYearWord',
     reduceContext: {},
   }, (mrErr, results) => {
-    endMR();
     if (mrErr) return callback(normalizeStoreError(mrErr));
 
     if (!results || results.length === 0) {
       console.log('[indexer] MapReduce produced no results');
-      metrics.report({results: 0, written: 0});
       return callback(null, 0);
     }
 
@@ -47,15 +42,12 @@ function buildDistributedIndex(gid, callback, options) {
     }
 
     console.log(`[indexer] MapReduce done, writing ${entries.length} entries...`);
-    const endWrite = metrics.phase('write');
 
     concurrentEach(entries, (e, cb) => {
       service.store.put(e.value, {key: e.key, gid}, (putErr) => cb(normalizeStoreError(putErr)));
     }, (err, written) => {
-      endWrite();
       if (err) return callback(err);
       console.log(`[indexer] stored ${written} definition entries`);
-      metrics.report({results: results.length, written});
       return callback(null, written);
     });
   });

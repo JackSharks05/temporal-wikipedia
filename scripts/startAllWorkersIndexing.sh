@@ -3,15 +3,6 @@
 KEY="../csci1380.pem"
 IP_FILE="aws_ips.txt"
 
-if [[ ! -f "$IP_FILE" ]]; then
-  echo "Error: $IP_FILE not found."
-  exit 1
-fi
-
-if [[ ! -f "$KEY" ]]; then
-  echo "Error: SSH key not found at $KEY"
-  exit 1
-fi
 
 for ip in $(grep -v '^#' "$IP_FILE" | grep -v '^$'); do
   (

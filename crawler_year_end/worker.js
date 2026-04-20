@@ -35,7 +35,7 @@ async function runWorker(dist) {
           {node: COORD, service: ORCHESTRATOR_SERVICE_NAME, method: 'get_job'},
       );
     } catch (err) {
-      console.log(`[worker] get_job RPC failed: ${err.message}; retrying in 10s`);
+      console.log(`[worker] get_job failed: ${err.message}; retrying in 10s`);
       await sleep(10000);
       continue;
     }
@@ -50,17 +50,15 @@ async function runWorker(dist) {
       continue;
     }
 
-    const t0 = Date.now();
     let result;
     try {
       const snapshots = fetchYearEndSnapshots(title, YEARS, {});
       await store(GID, title, snapshots);
       const links = getOutgoingLinks(title);
-      const elapsedMs = Date.now() - t0;
-      result = {pageId: snapshots.pageId, links, elapsedMs};
-      console.log(`[worker] stored ${title} (pageId=${snapshots.pageId}, links=${links.length}, ${elapsedMs}ms)`);
+      result = {pageId: snapshots.pageId, links};
+      console.log(`[worker] stored ${title} (pageId=${snapshots.pageId}, links=${links.length})`);
     } catch (err) {
-      result = {error: err.message || String(err), elapsedMs: Date.now() - t0};
+      result = {error: err.message || String(err)};
       console.log(`[worker] failed ${title}: ${err.message}`);
     }
 
@@ -80,6 +78,5 @@ async function runWorker(dist) {
   await runWorker(dist);
   process.exit(0);
 })().catch((err) => {
-  console.error('[worker] fatal:', err);
   process.exit(1);
 });

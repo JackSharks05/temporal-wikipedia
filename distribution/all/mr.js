@@ -24,17 +24,15 @@
  * @typedef {Object} MRConfig
  * @property {Mapper} [map]
  * @property {Reducer} [reduce]
- * @property {string} [mapModule]    absolute path to a module exporting the mapper
- * @property {string} [mapExport]    exported name (default: 'map')
- * @property {any}    [mapContext]   JSON-serializable ctx passed as 3rd arg
- * @property {string} [reduceModule] absolute path to a module exporting the reducer
- * @property {string} [reduceExport] exported name (default: 'reduce')
+ * @property {string} [mapModule]  
+ * @property {string} [mapExport]
+ * @property {any}    [mapContext]  
+ * @property {string} [reduceModule] 
+ * @property {string} [reduceExport] 
  * @property {any}    [reduceContext]
  * @property {string[]} [keys]
  * @property {string} [keyPrefix]
- * @property {boolean} [storeResults] if true, workers write reduced outputs directly
- *   to the distributed store (keyed by the reducer's output key) instead of shipping
- *   them back to the coordinator. Avoids OOM on large reduce outputs.
+ * @property {boolean} [storeResults]
  *
  * @typedef {Object} Mr
  * @property {(configuration: MRConfig, callback: Callback) => void} exec

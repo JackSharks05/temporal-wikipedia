@@ -1,21 +1,36 @@
-function reduceYearCoocurrence(year, word, counts) {
-  const totalCoocurrence = counts.reduce((acc, count) => acc + count, 0);
-  return { year, word, totalCoocurrence };
-}
+function reduceYearCoocurrence(key, values, ctx) {
+  const vals = Array.isArray(values) ? values : [values];
+  const topN = (ctx && ctx.topN) || 50;
 
-function reduceYearWord(key, values) {
-  const [prefix, year, word] = key.split(":");
-  if (prefix !== "diff") {
-    throw new Error(`Unexpected key prefix: ${prefix}`);
+  const parts = key.split(":");
+  if (parts.length < 3 || parts[0] !== "cooc") {
+    throw new Error(`Unexpected key format: ${key}`);
   }
-  const totalCoocurrence = values.reduce(
-    (sum, v) => sum + v.totalCoocurrence,
-    0,
-  );
+
+  const year = parts[1];
+  const word = parts.slice(2).join(":");
+  const neighborCounts = new Map();
+
+  for (const v of vals) {
+    if (!v || !v.neighbor) continue;
+    const neighbor = String(v.neighbor);
+    const count = Number(v.count) || 0;
+    if (count <= 0) continue;
+    neighborCounts.set(neighbor, (neighborCounts.get(neighbor) || 0) + count);
+  }
+
+  const neighbors = [...neighborCounts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, topN)
+    .map(([neighbor, count]) => ({ neighbor, count }));
+
   return {
-    key: `diff:${year}:${word}`,
-    value: totalCoocurrence,
+    [`cooc:${year}:${word}`]: {
+      year: Number(year),
+      word,
+      neighbors,
+    },
   };
 }
 
-module.exports = { reduceYearWord, reduceYearCoocurrence };
+module.exports = { reduceYearCoocurrence };

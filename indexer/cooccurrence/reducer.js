@@ -9,17 +9,19 @@ function reduceYearCooccurrence(key, values, ctx) {
 
   const year = parts[1];
   const word = parts.slice(2).join(":");
-  const neighborCounts = new Map();
+  const neighborCounts = Object.create(null);
 
   for (const v of vals) {
-    if (!v || !v.neighbor) continue;
-    const neighbor = String(v.neighbor);
-    const count = Number(v.count) || 0;
-    if (count <= 0) continue;
-    neighborCounts.set(neighbor, (neighborCounts.get(neighbor) || 0) + count);
+    const map = v && v.neighbors;
+    if (!map) {
+        continue;
+    }
+    for (const [neighbor, count] of Object.entries(map)) {
+        neighborCounts[neighbor] = (neighborCounts[neighbor] || 0) + count;
+    }
   }
 
-  const neighbors = [...neighborCounts.entries()]
+  const neighbors = Object.entries(neighborCounts)
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .slice(0, topN)
     .map(([neighbor, count]) => ({ neighbor, count }));

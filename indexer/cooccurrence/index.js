@@ -61,40 +61,38 @@ async function main(){
   const gid = getArg("--gid", "wiki");
   const topN = parseInt(getArg("--top-n", "10"), 10);
 
-  (async () => {
-    let dist;
-    try {
+  let dist;
+  try {
       dist = await connectToCluster({
-        nodesFile: getArg("--nodes-file", null),
-        gid,
-        port: parseInt(getArg("--port", "8081"), 10),
-        ip: getArg("--ip", null),
-        propagate: true,
+      nodesFile: getArg("--nodes-file", null),
+      gid,
+      port: parseInt(getArg("--port", "8081"), 10),
+      ip: getArg("--ip", null),
+      propagate: true,
       });
-    } catch (err) {
+  } catch (err) {
       console.error("Failed to connect:", err.message);
       process.exit(1);
-    }
+  }
 
-    console.log(`[indexer] group: ${gid}`);
+  console.log(`[indexer] group: ${gid}`);
 
-    buildDistributedIndex(
-      gid,
-      async (err, count) => {
-        if (err) {
-          console.error("[indexer] Error:", err.message);
-          await shutdown(dist);
-          process.exit(1);
-        }
-        console.log(
-          `[indexer] done. ${count} cooccurrence index entries built.`,
-        );
+  buildDistributedIndex(
+    gid,
+    async (err, count) => {
+    if (err) {
+        console.error("[indexer] Error:", err.message);
         await shutdown(dist);
-        process.exit(0);
-      },
-      { topN },
+        process.exit(1);
+    }
+    console.log(
+        `[indexer] done. ${count} cooccurrence index entries built.`,
     );
-  })();
+    await shutdown(dist);
+    process.exit(0);
+    },
+    { topN },
+  );
 }
 
 if (require.main == module) {

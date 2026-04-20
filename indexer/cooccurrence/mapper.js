@@ -30,20 +30,17 @@ function mapYearCooccurrence(key, data, ctx) {
       for (let j = i + 1; j < rightBound; j++) {
         const neighbor = tokens[j];
         if (anchor === neighbor) continue;
-
-        const forward = `${anchor}\u0000${neighbor}`; // using null character \u0000 as a delimiter
-        const backward = `${neighbor}\u0000${anchor}`; // bc it's unlikely to appear in normal text tokens lol
-        counts[forward] = (counts[forward] || 0) + 1;
-        counts[backward] = (counts[backward] || 0) + 1;
+        if (!counts[anchor]) counts[anchor] = Object.create(null);
+        counts[anchor][neighbor] = (counts[anchor][neighbor] || 0) + 1;
+        if (!counts[neighbor]) counts[neighbor] = Object.create(null);
+        counts[neighbor][anchor] = (counts[neighbor][anchor] || 0) + 1;
       }
     }
-
-    for (const [pair, count] of Object.entries(counts)) {
-      const [word, neighbor] = pair.split("\u0000");
+    // fix oom issue just emit a single neighbor counts key per distinct word
+    for (const [anchor, countsObj] of Object.entries(counts)) {
       emitted.push({
-        [`cooc:${year}:${word}`]: {
-          neighbor,
-          count,
+        [`cooc:${year}:${anchor}`]: {
+          neighbors: counts[obj]
         },
       });
     }

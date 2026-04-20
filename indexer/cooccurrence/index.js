@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * coocurrence indexer — distributed MapReduce over article-year snapshots.
+ * cooccurrence indexer — distributed MapReduce over article-year snapshots.
  */
 
 const {
@@ -21,7 +21,7 @@ function buildDistributedIndex(gid, callback, options) {
     return callback(new Error(`group not found or missing mr: ${gid}`));
   }
 
-  const metrics = createMetrics("coocurrence");
+  const metrics = createMetrics("cooccurrence");
   console.log(`[indexer] starting MapReduce (topN=${topN})...`);
 
   const endMR = metrics.phase("mapreduce");
@@ -29,10 +29,10 @@ function buildDistributedIndex(gid, callback, options) {
     {
       keyPrefix: "article-year-history:",
       mapModule: MAPPER_MODULE,
-      mapExport: "mapYearCoocurrence",
+      mapExport: "mapYearCooccurrence",
       mapContext: { gid },
       reduceModule: REDUCER_MODULE,
-      reduceExport: "reduceYearCoocurrence",
+      reduceExport: "reduceYearCooccurrence",
       reduceContext: { topN },
       storeResults: true,
     },
@@ -41,7 +41,9 @@ function buildDistributedIndex(gid, callback, options) {
       if (mrErr) return callback(normalizeStoreError(mrErr));
 
       const written = (result && result.written) || 0;
-      console.log(`[indexer] stored ${written} coocurrence entries (written during reduce)`);
+      console.log(
+        `[indexer] stored ${written} cooccurrence entries (written during reduce)`,
+      );
       metrics.report({ written });
       return callback(null, written);
     },
@@ -85,7 +87,9 @@ if (require.main === module) {
           await shutdown(dist);
           process.exit(1);
         }
-        console.log(`[indexer] done. ${count} coocurrence index entries built.`);
+        console.log(
+          `[indexer] done. ${count} cooccurrence index entries built.`,
+        );
         await shutdown(dist);
         process.exit(0);
       },

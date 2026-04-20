@@ -10,8 +10,8 @@ function tokenize(text, minLength) {
   );
 }
 
-// for each article-year text, emit coocurrence counts within a token window (right now it's 5 or given in context)
-function mapYearCoocurrence(key, data, ctx) {
+// For each article-year text, emit cooccurrence counts within a token window.
+function mapYearCooccurrence(key, data, ctx) {
   if (!data || !data.years || typeof data.years !== "object") return [];
 
   const windowSize = Math.max(1, (ctx && ctx.windowSize) || 5);
@@ -51,4 +51,4 @@ function mapYearCoocurrence(key, data, ctx) {
 
   return emitted;
 }
-module.exports = { mapYearCoocurrence };
+module.exports = { mapYearCooccurrence };

@@ -1,4 +1,4 @@
-function reduceYearCoocurrence(key, values, ctx) {
+function reduceYearCooccurrence(key, values, ctx) {
   const vals = Array.isArray(values) ? values : [values];
   const topN = (ctx && ctx.topN) || 50;
 
@@ -33,4 +33,4 @@ function reduceYearCoocurrence(key, values, ctx) {
   };
 }
 
-module.exports = { reduceYearCoocurrence };
+module.exports = { reduceYearCooccurrence };

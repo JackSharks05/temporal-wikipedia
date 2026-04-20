@@ -9,12 +9,10 @@
  */
 function bootstrap(config) {
   const distribution = {};
-
-  // @ts-ignore This is the first time globalThis.distribution is being initialized, so the object does not have all the necessary properties.
+  globalThis.__workerRequire = require;
   globalThis.distribution = distribution;
   distribution.util = require('./distribution/util/util.js');
 
-  // @ts-ignore node.server is lazily initialized.
   distribution.node = require('./distribution/local/node.js');
   if (config) {
     distribution.node.config = config;

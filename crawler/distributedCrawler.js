@@ -1,14 +1,13 @@
 #!/usr/bin/env node
 
 const distribution = require('../distribution');
-const {storeArticle} = require('../storage/wikiStore');
 const {normalizeDisplayTitle, getTitleKey, DEFAULT_TIMEOUT_MS, DEFAULT_HISTORY_LIMIT, DEFAULT_USER_AGENT} = require('./wikiFetch');
 
 const PAGE_PREFIX = 'page:';
 const CRAWL_GID = 'crawl';
 const WIKI_GID = 'wiki';
 const DEFAULT_MAX_RETRIES = 2;
-const DEFAULT_STALE_AFTER_MINUTES = 30;
+const DEFAULT_STALE_AFTER_MINUTES = 5;
 const DEFAULT_ROUND_DELAY_MS = 0;
 const DEFAULT_LANGUAGE = 'en';
 const DEFAULT_PROJECT = 'wikipedia';
@@ -16,7 +15,7 @@ const DEFAULT_FETCH_PATH = require.resolve('./wikiFetch');
 const SETTINGS = {crawlGid:CRAWL_GID,
   wikiGid:WIKI_GID,
   seed:'Distributed systems',
-  batchSize:5,
+  batchSize:300,
   maxRounds:10,
   maxPages:100,
   maxDepth:2,
@@ -42,7 +41,6 @@ const EMPTY_PAGE = {
   linkCount: 0,
   historyTruncated: false,
   lastError: null,
-  rawArticle: null,
 };
 
 function pageKeyForTitle(title) {
@@ -72,7 +70,7 @@ function setup(options) {
     crawlGid:SETTINGS.crawlGid,
     wikiGid:SETTINGS.wikiGid,
     seeds:(options.seeds || [SETTINGS.seed]).map(normalizeDisplayTitle),
-    batchSize:SETTINGS.batchSize,
+    batchSize:options.batchSize === undefined ? SETTINGS.batchSize : options.batchSize,
     maxRounds:options.maxRounds === undefined ? SETTINGS.maxRounds : options.maxRounds,
     maxPages:SETTINGS.maxPages,
     articleCap:options.articleCap === undefined ? SETTINGS.maxPages : options.articleCap,
@@ -83,7 +81,7 @@ function setup(options) {
     segmentSize:SETTINGS.segmentSize,
     timeoutMs:SETTINGS.timeoutMs,
     staleAfterMinutes:SETTINGS.staleAfterMinutes,
-    roundDelayMs:SETTINGS.roundDelayMs,
+    roundDelayMs:options.roundDelayMs === undefined ? SETTINGS.roundDelayMs : options.roundDelayMs,
     language:SETTINGS.language,
     project:SETTINGS.project,
     userAgent:SETTINGS.userAgent,
@@ -92,18 +90,7 @@ function setup(options) {
   };
 }
 
-function normalizeError(err) {
-  if (!err) return null;
-  if (err instanceof Error) return err;
-  if (typeof err === 'object') {
-    let vals = Object.values(err);
-    for (let i = 0; i < vals.length; i++) {
-      if (vals[i]) return normalizeError(vals[i]);
-    }
-    return null;
-  }
-  return new Error(String(err));
-}
+const {normalizeError} = require('../lib/normalizeError');
 
 function call(fn) {
   return new Promise((resolve,reject) => {
@@ -135,16 +122,6 @@ function write(store,gid,key,val) {
   return call((cb) => store.put(val,{gid:gid,key:key},cb));
 }
 
-
-function persistArticle(gid,article, segmentSize) {
-  return new Promise((resolve,reject) => {
-    storeArticle(gid,article,(err,meta) => {
-      let fixed = normalizeError(err);
-      if (fixed) return reject(fixed);
-      resolve(meta);
-    },{segmentSize: segmentSize});
-  });
-}
 
 async function useGroup(dist,gid,group) {
   await call((cb) => dist.local.groups.put(gid, group, cb));
@@ -190,8 +167,11 @@ async function seedTitles(dist,gid,titles) {
     let key = pageKeyForTitle(title);
     let already = await read(store,gid,key,true);
     if (already) continue;
-    await write(store,gid,key,pageRecord(title));
-    made++;
+    try {
+      await write(store,gid,key,pageRecord(title));
+      made++;
+    } catch (err) {
+    }
   }
   return made;
 }
@@ -210,162 +190,43 @@ async function recoverInflight(dist,gid,staleAfterMs) {
     if (!Number.isFinite(when)) continue;
     if (now - when < staleAfterMs) continue;
 
-    await write(store,gid,item.key,Object.assign({},item.value,{status:'pending',claimedAt:null,rawArticle:null}));
+    await write(store,gid,item.key,Object.assign({},item.value,{status:'pending',claimedAt:null}));
     fixedCount++;
   }
 
   return fixedCount;
 }
 
-function makeMapper(options) {
-  return new Function(`
-    return function mapPage(key,value) {
-      const fetcher = process.mainModule.require(${JSON.stringify(options.fetchPath)});
-      const store = globalThis.distribution.local.store;
-      const now = new Date().toISOString();
+const MAPPER_MODULE = require.resolve('./crawlerMapper');
+const REDUCER_MODULE = require.resolve('./crawlerReducer');
 
-      function makePage(title, depth, from, extra) {
-        return Object.assign({status:'pending',
-          retries:0,
-          claimedAt:null,
-          storedAt:null,
-          pageId:null,
-          revisionCount:0,
-          linkCount:0,
-          historyTruncated:false,
-          lastError:null,
-          rawArticle:null,
-          title:fetcher.normalizeDisplayTitle(title),
-          depth:depth,
-          discoveredFrom:from,
-          enqueuedAt:now
-        }, extra || {});
-      }
-
-      if (!value || value.status !== 'pending') return [];
-
-      const working = Object.assign({},value,{status:'inflight',claimedAt:now,lastError:null});
-      store.put(working, {gid:${JSON.stringify(options.crawlGid)}, key:key}, () => {});
-
-
-      try {
-        const article = fetcher.fetchArticleBundle(value.title, ${JSON.stringify(options.fetchOptions)});
-
-        store.put(makePage(value.title,value.depth,value.discoveredFrom,{
-          status:'inflight',
-          retries:value.retries,
-          claimedAt:now,
-          pageId:article.pageId,
-          revisionCount:(article.revisions || []).length,
-          linkCount:(article.links || []).length,
-          historyTruncated:Boolean(article.truncated),
-          rawArticle:{title: article.title, pageId: article.pageId, revisions: article.revisions}
-        }), {gid:${JSON.stringify(options.crawlGid)}, key:key}, () => {});
-
-        let found = [];
-
-        let links = article.links || [];
-        for (let i = 0; i < links.length; i++) {
-          let title = links[i];
-          let littleObj = {};
-          littleObj[${JSON.stringify(PAGE_PREFIX)} +fetcher.getTitleKey(title)] = makePage(title, Number(value.depth || 0) + 1, value.title);
-          found.push(littleObj);
-        }
-        return found;
-      } catch (err) {
-        const tries = Number(value.retries ||0) + 1;
-        store.put(Object.assign({}, value, {status:tries < ${options.maxRetries} ? 'pending' : 'failed',
-          retries:tries,
-          claimedAt:null,
-          rawArticle:null,
-          lastError:err && err.message ? err.message : String(err)
-        }), {gid:${JSON.stringify(options.crawlGid)}, key:key}, () => {});
-        return [];
-      }
-    };
-  `)();
-}
-
-function makeReducer(crawlGid, maxDepth) {
-  return new Function(`
-    return function reducePage(key,values) {
-      const store = globalThis.distribution.local.store;
-      let stuff = Array.isArray(values) ? values : [values];
-      stuff = stuff.filter(Boolean);
-      let current = null;
-      let best = null;
-
-      store.get({gid: ${JSON.stringify(crawlGid)},key:key},(err,val) => {
-        if (!err) current = val;
-      });
-
-      for (let i = 0; i < stuff.length; i++) {
-        let v = stuff[i];
-        if (!best || Number(v.depth || 0) < Number(best.depth || 0)) best = v;
-      }
-
-      if (!best) return null;
-      if (Number(best.depth || 0) > ${maxDepth}) return null;
-
-      if (!current) {
-        store.put(best, {gid:${JSON.stringify(crawlGid)}, key:key}, () => {});
-        return null;
-      }
-
-      if (current.status === 'pending' && Number(best.depth || 0) < Number(current.depth || 0)) {
-        store.put(Object.assign({}, current, {depth:best.depth, discoveredFrom:best.discoveredFrom, enqueuedAt:best.enqueuedAt}), {gid:${JSON.stringify(crawlGid)}, key:key}, () => {});
-      }
-      return null;
-    };
-  `)();
-}
-
-async function runRound(dist,options,batch) {
+async function runRound(dist, options, batch) {
   await call((cb) => dist[options.crawlGid].mr.exec({
-    keys:batch.map((x) => x.key),
-    map:makeMapper({
-      crawlGid:options.crawlGid, fetchPath:options.fetchPath,
+    keys: batch.map((x) => x.key),
+    mapModule: MAPPER_MODULE,
+    mapExport: 'mapPage',
+    mapContext: {
+      crawlGid: options.crawlGid,
+      wikiGid: options.wikiGid,
+      fetchPath: options.fetchPath,
+      pagePrefix: PAGE_PREFIX,
+      maxRetries: options.maxRetries,
       fetchOptions: {
-        timeoutMs:options.timeoutMs, userAgent:options.userAgent,
-        historyLimit:options.historyLimit, maxOutgoingLinks:options.maxOutgoingLinks,
-        language:options.language, project:options.project
-      }, maxRetries: options.maxRetries
-    }),
-    reduce: makeReducer(options.crawlGid, options.maxDepth)
+        timeoutMs: options.timeoutMs,
+        userAgent: options.userAgent,
+        historyLimit: options.historyLimit,
+        maxOutgoingLinks: options.maxOutgoingLinks,
+        language: options.language,
+        project: options.project,
+      },
+    },
+    reduceModule: REDUCER_MODULE,
+    reduceExport: 'reducePage',
+    reduceContext: {
+      crawlGid: options.crawlGid,
+      maxDepth: options.maxDepth,
+    },
   }, cb));
-}
-
-async function ingestRound(dist,options,batch) {
-  let store = dist[options.crawlGid].store;
-  let result = {stored: 0, skipped: 0, failed: 0};
-
-
-  for (let i = 0; i < batch.length; i++) {
-    let key = batch[i].key;
-    let record = await read(store,options.crawlGid,key,true);
-    if (!record || record.status !== 'inflight' || !record.rawArticle) {
-      result.skipped++;
-      continue;
-    }
-    try {
-      await persistArticle(options.wikiGid,record.rawArticle,options.segmentSize);
-
-      await write(store, options.crawlGid, key, Object.assign({},record, {
-        status:'stored',
-        storedAt:new Date().toISOString(),
-        rawArticle:null,
-        lastError:null,
-      }));
-
-      result.stored++;
-    } catch (err) {
-      let tries = Number(record.retries || 0) + 1;
-
-      await write(store, options.crawlGid, key, Object.assign({}, record, {status:tries < options.maxRetries ? 'pending' : 'failed', retries:tries, claimedAt:null, rawArticle:null, lastError:err.message}));
-      result.failed++;
-    }
-  }
-  return result;
 }
 
 async function crawlLoop(dist,options) {
@@ -392,12 +253,13 @@ async function crawlLoop(dist,options) {
 
     if (!batch.length) break;
 
-    // just do small chunk each round so its easier to follow 
-    console.log('[crawl] round '+ round + ': ' + batch.length+' pages');
+    console.log('[crawl] round '+ round + ': ' + batch.length+' pages [' + batch.map((x) => x.value.title).join(', ') + ']');
+    let t0 = Date.now();
+    console.log('[crawl] starting MapReduce fetch+store...');
     await runRound(dist, options, batch);
-    let ingest = await ingestRound(dist, options, batch);
+    let t1 = Date.now();
     let after = summarize(await pageRecords(dist, options.crawlGid));
-    console.log('[crawl] round '+round+' stored='+ingest.stored+' failed='+ingest.failed+' skipped='+ingest.skipped+' pending='+after.pending+' totalStored='+after.stored);
+    console.log('[crawl] round '+round+' pending='+after.pending+' totalStored='+after.stored+' ('+((t1-t0)/1000).toFixed(1)+'s)');
 
     if (after.stored >= cap) break;
     if (options.roundDelayMs) {
@@ -433,34 +295,35 @@ async function runDistributedCrawler(options) {
 
 module.exports = {PAGE_PREFIX,pageKeyForTitle,runDistributedCrawler,crawlLoop};
 
-if (require.main === module) {
-  function arg(name,fallback) {
-    let i = process.argv.indexOf(name);
-    if (i === -1 || i + 1 >= process.argv.length) return fallback;
-    return process.argv[i + 1];
+async function main() {
+  const {connectToCluster, shutdown, getArg: arg, manyArgs, getPrivateIp} =
+      require('../lib/clusterConnect');
+
+  const nodesFile = arg('--nodes-file', null);
+  if (!nodesFile) {
+    process.exit(1);
   }
 
-  function manyArgs(name) {
-    let out = [];
-    for (let i = 0; i < process.argv.length; i++) {
-      if (process.argv[i] === name && i + 1 < process.argv.length){
-        out.push(process.argv[i + 1]);
-      }
-    }
-    return out;
+  const ip = arg('--ip', getPrivateIp());
+  const port = Number(arg('--port', '8080'));
+  const seeds = manyArgs('--seed');
+
+  const dist = await connectToCluster({ip, port, nodesFile, gid: 'all'});
+
+  try {
+    const result = await runDistributedCrawler({
+      dist, ip, port,
+      seeds: seeds.length ? seeds : [SETTINGS.seed],
+      articleCap: Number(arg('--article-cap', arg('--hard-cap', String(SETTINGS.maxPages)))),
+      maxRounds: Number(arg('--max-rounds', String(SETTINGS.maxRounds))),
+      historyLimit: Number(arg('--history-limit', String(SETTINGS.historyLimit))),
+    });
+  } catch (err) {
+    console.error('[crawl] failed:', err);
   }
 
-  let seeds = manyArgs('--seed');
-  if (!seeds.length) {
-    let oneSeed = arg('--seed',null);
-    if (oneSeed) seeds = [oneSeed];
-  }
-
-  runDistributedCrawler({ip: arg('--ip','127.0.0.1'),
-    port: Number(arg('--port','9000')),
-    seeds: seeds.length ? seeds : [SETTINGS.seed],
-    articleCap: Number(arg('--article-cap',arg('--hard-cap',String(SETTINGS.maxPages)))),
-    maxRounds: Number(arg('--max-rounds',String(SETTINGS.maxRounds))),
-    historyLimit: Number(arg('--history-limit',String(SETTINGS.historyLimit)))
-  });
+  await shutdown(dist);
+  process.exit(0);
 }
+
+if (require.main === module) main();

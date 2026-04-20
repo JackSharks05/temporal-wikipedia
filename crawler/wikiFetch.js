@@ -1,6 +1,6 @@
-const {execFileSync} = require('node:child_process');
+const {spawnSync} = require('node:child_process');
 const {JSDOM} = require('jsdom');
-const {normalizeTitle} = require('../storage/segmentArticle');
+const {normalizeTitle, createSegment} = require('../storage/segmentArticle');
 
 const DEFAULT_TIMEOUT_MS = 20000;
 const DEFAULT_HISTORY_LIMIT = 2000;
@@ -37,7 +37,7 @@ function shouldFollowArticleTitle(title) {
   return true;
 }
 
-function api(params,options) {
+function api(params, options) {
   options = options || {};
 
   let secs = Math.ceil((options.timeoutMs || DEFAULT_TIMEOUT_MS) / 1000);
@@ -57,13 +57,18 @@ function api(params,options) {
   let lang = options.language || 'en';
   let project = options.project || 'wikipedia';
   let url = 'https://' + lang + '.' + project + '.org/w/api.php?' + new URLSearchParams(cleaned).toString();
-  let txt = execFileSync('curl', ['--fail','--silent','--show-error','--location','--compressed','--max-time',String(secs),'--user-agent',ua,url],{encoding:'utf8',maxBuffer: 64 * 1024 * 1024});
-  let parsed = JSON.parse(txt);
+  let curlArgs = ['--silent', '--show-error', '--location', '--compressed',
+    '--max-time', String(secs), '--user-agent', ua, url];
 
+  let res = spawnSync('curl', curlArgs, {encoding: 'utf8', maxBuffer: 64 * 1024 * 1024});
+  if (res.status !== 0) {
+    throw new Error((res.stderr || '').trim() || 'curl failed (exit ' + res.status + ')');
+  }
+
+  let parsed = JSON.parse(res.stdout);
   if (parsed && parsed.error) {
     throw new Error(parsed.error.info || parsed.error.code || 'Wikipedia API error');
   }
-
   return parsed;
 }
 
@@ -202,10 +207,130 @@ function fetchArticleBundle(title,options) {
   return {title:hist.title, pageId:hist.pageId || current.pageId, revisions:hist.revisions, links:links, truncated:hist.truncated};
 }
 
+function fetchAndStoreRevisions(title, wikiGid, options) {
+  options = options || {};
+
+  const current = fetchCurrentPageHtml(title, options);
+  const resolvedTitle = current.title;
+  const links = extractBodyArticleLinksFromHtml(current.html, {currentTitle: resolvedTitle});
+
+  let lim = Math.floor(options.historyLimit || DEFAULT_HISTORY_LIMIT);
+  if (lim < 1) lim = 1;
+
+  const store = globalThis.distribution[wikiGid].store;
+  const titleKey = normalizeTitle(resolvedTitle);
+
+  let rvcontinue = null;
+  let pageId = '';
+  let currentTitle = normalizeDisplayTitle(resolvedTitle);
+  let segmentId = 0;
+  let totalRevs = 0;
+  let manifestSegments = [];
+  let firstTimestamp = null;
+  let latestTimestamp = null;
+  let latestRevId = null;
+
+  // Carry the last revision across batches so deltas bridge segment boundaries
+  let carryOver = null;
+
+  while (totalRevs < lim) {
+    let batchLimit = Math.min(50, lim - totalRevs);
+    let payload = api({
+      action: 'query', prop: 'revisions', titles: currentTitle,
+      redirects: '1', rvprop: 'ids|timestamp|content', rvslots: 'main',
+      rvdir: 'newer', rvlimit: String(batchLimit),
+      rvcontinue: rvcontinue, format: 'json', formatversion: '2',
+    }, options);
+
+    let p = payload.query && payload.query.pages && payload.query.pages[0];
+    if (!p || p.missing) {
+      throw new Error('No revision history returned for "' + title + '"');
+    }
+
+    pageId = String(p.pageid || pageId);
+    currentTitle = normalizeDisplayTitle(p.title || currentTitle);
+
+    let rawRevs = p.revisions || [];
+    if (rawRevs.length === 0) break;
+
+    let batchRevs = [];
+    for (let i = 0; i < rawRevs.length; i++) {
+      let r = rawRevs[i];
+      batchRevs.push({
+        revId: String(r.revid || ''),
+        parentId: String(r.parentid || ''),
+        timestamp: String(r.timestamp || ''),
+        content: revisionContent(r),
+      });
+      if (totalRevs + batchRevs.length >= lim) break;
+    }
+
+    if (!firstTimestamp) firstTimestamp = batchRevs[0].timestamp;
+    let lastRev = batchRevs[batchRevs.length - 1];
+    latestTimestamp = lastRev.timestamp;
+    latestRevId = lastRev.revId;
+
+    // Prepend carried-over revision so deltas bridge segment boundaries
+    let revsForSegment = carryOver ? [carryOver].concat(batchRevs) : batchRevs;
+    let segment = createSegment(pageId, currentTitle, segmentId, revsForSegment);
+
+    store.put(segment, {
+      gid: wikiGid,
+      key: 'article-segment:' + pageId + ':' + segmentId,
+    }, function() {});
+
+    manifestSegments.push({
+      segmentId: segment.segmentId,
+      startRevId: segment.startRevId,
+      endRevId: segment.endRevId,
+      startTimestamp: segment.startTimestamp,
+      endTimestamp: segment.endTimestamp,
+      revisionCount: segment.revisionCount,
+    });
+
+    carryOver = lastRev;
+    segmentId++;
+    totalRevs += batchRevs.length;
+
+    rvcontinue = payload.continue && payload.continue.rvcontinue;
+    if (!rvcontinue) break;
+  }
+
+  if (totalRevs === 0) {
+    throw new Error('No usable revisions found for "' + title + '"');
+  }
+
+  // Write manifest, meta, and title record
+  let manifest = {pageId: pageId, title: currentTitle, segmentSize: 50, segments: manifestSegments};
+  let meta = {
+    pageId: pageId, title: currentTitle, latestRevId: latestRevId,
+    firstTimestamp: firstTimestamp, latestTimestamp: latestTimestamp,
+    revisionCount: totalRevs, segmentCount: segmentId, segmentSize: 50,
+  };
+  let titleRecord = {pageId: pageId, title: currentTitle};
+
+  store.put(manifest, {gid: wikiGid, key: 'article-manifest:' + pageId}, function() {});
+  store.put(meta, {gid: wikiGid, key: 'article-meta:' + pageId}, function() {});
+  store.put(titleRecord, {gid: wikiGid, key: 'article-title:' + titleKey}, function() {});
+
+  let maxLinks = options.maxOutgoingLinks;
+  if (maxLinks === undefined || maxLinks === null) maxLinks = Infinity;
+  if (maxLinks < 0) maxLinks = 0;
+
+  return {
+    title: currentTitle, pageId: pageId,
+    revisionCount: totalRevs, segmentCount: segmentId,
+    truncated: Boolean(rvcontinue),
+    links: links.slice(0, maxLinks),
+  };
+}
+
 module.exports = {
   DEFAULT_TIMEOUT_MS,
   DEFAULT_HISTORY_LIMIT,
   DEFAULT_USER_AGENT,
+  api,
+  revisionContent,
   normalizeDisplayTitle,
   getTitleKey,
   shouldFollowArticleTitle,
@@ -213,4 +338,5 @@ module.exports = {
   extractBodyArticleLinksFromHtml,
   fetchRevisionHistory,
   fetchArticleBundle,
+  fetchAndStoreRevisions,
 };

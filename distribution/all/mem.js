@@ -17,6 +17,7 @@
  * @property {(configuration: SimpleConfig, callback: Callback) => void} get
  * @property {(state: any, configuration: SimpleConfig, callback: Callback) => void} put
  * @property {(state: any, configuration: SimpleConfig, callback: Callback) => void} append
+ * @property {(states: any[], configurations: SimpleConfig[], callback: Callback) => void} appendBatch
  * @property {(configuration: SimpleConfig, callback: Callback) => void} del
  * @property {(configuration: Object.<string, Node>, callback: Callback) => void} reconf
  */
@@ -147,7 +148,6 @@ function mem(config) {
     if (config.key === null) {
       return callback(new Error('mem.append: missing key'),null);
     }
-
     pickNode(config.key, (e, node) => {
       if (e) {
         return callback(e,null);
@@ -156,6 +156,61 @@ function mem(config) {
 
       const remote = {node:node,service:'mem',method:'append'};
       return dist.local.comm.send([state,{gid:config.gid,key:config.key}],remote,callback,);
+    });
+  }
+
+  function appendBatch(states, configurations, callback) {
+    const dist = globalThis.distribution;
+    const id = dist.util.id;
+
+    if (!Array.isArray(states) || !Array.isArray(configurations) ||
+        states.length !== configurations.length) {
+      return callback(new Error('mem.appendBatch: states and configurations must be parallel arrays'), null);
+    }
+    if (states.length === 0) return callback(null, {appended: 0});
+
+    dist.local.groups.get(context.gid, (e, group) => {
+      if (e) return callback(e, null);
+
+      const nodes = Object.values(group);
+      const nids = nodes.map((n) => id.getNID(n));
+      const batches = Object.create(null);
+      for (let i = 0; i < states.length; i++) {
+        const state = states[i];
+        const config = configurations[i];
+        if (!config || typeof config.key !== 'string') {
+          return callback(new Error('mem.appendBatch: each config must have a string key'), null);
+        }
+
+        const nid = context.hash(id.getID(config.key), nids);
+        const node = nodes.find((n) => id.getNID(n) === nid);
+        if (!node) {
+          return callback(new Error('mem.appendBatch: no node found for key ' + config.key), null);
+        }
+
+        const sid = id.getSID(node);
+        if (!batches[sid]) batches[sid] = {node, states: [], configurations: []};
+        batches[sid].states.push(state);
+        batches[sid].configurations.push(config);
+      }
+
+      const groups = Object.values(batches);
+      let outstanding = groups.length;
+      let totalAppended = 0;
+      /** @type {Error|null} */
+      let firstErr = null;
+
+      for (const g of groups) {
+        const remote = {node: g.node, service: 'mem', method: 'appendBatch'};
+        dist.local.comm.send([g.states, g.configurations], remote, (err, res) => {
+          if (err && !firstErr) firstErr = err;
+          if (res && typeof res.appended === 'number') totalAppended += res.appended;
+          outstanding--;
+          if (outstanding === 0) {
+            callback(firstErr, firstErr ? null : {appended: totalAppended});
+          }
+        });
+      }
     });
   }
   /**
@@ -276,6 +331,7 @@ function mem(config) {
     get,
     put,
     append,
+    appendBatch,
     del,
     reconf,
   };

@@ -227,7 +227,7 @@ function startRepl() {
   });
 }
 
-(async () => {
+async function main() {
   try {
     _dist = await connectToCluster({
       nodesFile: getArg("--nodes-file", null),
@@ -241,4 +241,8 @@ function startRepl() {
   }
   console.log(`Connected, group: ${gid}`);
   startRepl();
-})();
+};
+
+if (require.main == module) {
+    main();
+}

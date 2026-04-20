@@ -5,16 +5,21 @@ function reducer(yearWord, entries, ctx) {
   const cap = ctx.cap;
   const idf = Math.log(articleCount / entries.length);
 
-  const articles = entries.map((entry) => {
+  const byTitle = new Map();
+  for (const entry of entries) {
     const tf = entry.freq / entry.totalTerms;
-    return {title: entry.title, tfidf: tf * idf};
-  });
+    const tfidf = tf * idf;
+    const existing = byTitle.get(entry.title);
+    if (!existing || tfidf > existing.tfidf) {
+      byTitle.set(entry.title, {title: entry.title, tfidf});
+    }
+  }
 
-  articles.sort((a, b) => b.tfidf - a.tfidf);
+  const articles = [...byTitle.values()].sort((a, b) => b.tfidf - a.tfidf);
 
   return {
     [`tfidf:${yearWord}`]: {
-      docCount: entries.length,
+      docCount: byTitle.size,
       idf,
       articles: articles.slice(0, cap),
     },

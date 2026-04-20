@@ -88,9 +88,25 @@ function getDefinitionEntry(gid, year, title, callback) {
   });
 }
 
+function getPageEditFrequency(gid, pageId, callback) {
+  const store = globalThis.distribution[gid].store;
+  store.get({ key: `pageEditFrequency:${pageId}`, gid }, (err, value) => {
+    callback(normalizeStoreError(err), value);
+  });
+}
+
+function getGlobalEditFrequency(gid, year, callback) {
+  const store = globalThis.distribution[gid].store;
+  store.get({ key: `globalEditFrequency:${year}`, gid }, (err, value) => {
+    callback(normalizeStoreError(err), value);
+  });
+}
+
 module.exports = {
   getDiffEntry,
   getBirthEntry,
   getDeathEntry,
   getDefinitionEntry,
+  getPageEditFrequency,
+  getGlobalEditFrequency,
 };

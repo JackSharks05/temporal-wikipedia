@@ -1,9 +1,5 @@
 #!/usr/bin/env node
 
-/**
- * temporalDiff indexer — distributed MapReduce over article-meta keys.
- */
-
 const {normalizeError: normalizeStoreError} = require('../../lib/normalizeError');
 
 const MAPPER_MODULE = require.resolve('./mapper');
@@ -17,8 +13,6 @@ function buildDistributedIndex(gid, callback, options) {
   if (!service || !service.store || !service.mr) {
     return callback(new Error(`group not found or missing mr: ${gid}`));
   }
-
-  console.log(`[indexer] starting MapReduce (topN=${topN})...`);
 
   service.mr.exec({
     keyPrefix: 'article-year-history:',
@@ -40,39 +34,26 @@ function buildDistributedIndex(gid, callback, options) {
 
 module.exports = {buildDistributedIndex};
 
-if (require.main === module) {
-  const {connectToCluster, shutdown, getArg} = require('../../lib/clusterConnect');
+const {connectToCluster, shutdown, getArg} = require('../../lib/clusterConnect');
 
+async function main() {
   const gid = getArg('--gid', 'wiki');
   const topN = parseInt(getArg('--top-n', '10'), 10);
 
-  (async () => {
-    let dist;
-    try {
-      dist = await connectToCluster({
-        nodesFile: getArg('--nodes-file', null),
-        gid,
-        port: parseInt(getArg('--port', '8081'), 10),
-        ip: getArg('--ip', null),
-        propagate: true,
-      });
-    } catch (err) {
-      console.error('Failed to connect:', err.message);
-      process.exit(1);
-    }
+  const dist = await connectToCluster({
+    nodesFile: getArg('--nodes-file', null),
+    gid,
+    port: parseInt(getArg('--port', '8081'), 10),
+    ip: getArg('--ip', null),
+    propagate: true,
+  });
 
-    console.log(`[indexer] group: ${gid}`);
-
-
-    buildDistributedIndex(gid, async (err, count) => {
-    if (err) {
-        console.error('[indexer] Error:', err.message);
-        await shutdown(dist);
-        process.exit(1);
-    }
-    console.log(`[indexer] done. ${count} year:word index entries built.`);
+  buildDistributedIndex(gid, async (err, count) => {
+    if (err) console.error('[indexer] Error:', err.message);
+    else console.log(`[indexer] done. ${count} diff:year:word entries built.`);
     await shutdown(dist);
-    process.exit(0);
-    }, {topN});
-  })();
+    process.exit(err ? 1 : 0);
+  }, {topN});
 }
+
+if (require.main === module) main();

@@ -14,9 +14,6 @@ function buildTfIdfIndex(gid, callback, options) {
   if (!service || !service.store || !service.mr) {
     return callback(new Error(`group not found or missing mr: ${gid}`));
   }
-
-  console.log(`[indexer] starting MapReduce (articleCount=${articleCount}, cap=${cap})...`);
-
   service.mr.exec({
     keyPrefix: 'article-year-history:',
     mapModule: MAPPER_MODULE,
@@ -37,37 +34,27 @@ function buildTfIdfIndex(gid, callback, options) {
 
 module.exports = {buildTfIdfIndex};
 
-if (require.main === module) {
-  const {connectToCluster, shutdown, getArg} = require('../../lib/clusterConnect');
+const {connectToCluster, shutdown, getArg} = require('../../lib/clusterConnect');
+
+async function main() {
   const gid = getArg('--gid', 'wiki');
   const articleCount = parseInt(getArg('--article-count', '2400'), 10);
   const cap = parseInt(getArg('--cap', '25'), 10);
 
-  (async () => {
-    let dist;
-    try {
-      dist = await connectToCluster({
-        nodesFile: getArg('--nodes-file', null),
-        gid,
-        port: parseInt(getArg('--port', '8081'), 10),
-        ip: getArg('--ip', null),
-        propagate: true,
-      });
-    } catch (err) {
-      console.error('Failed to connect:', err.message);
-      process.exit(1);
-    }
+  const dist = await connectToCluster({
+    nodesFile: getArg('--nodes-file', null),
+    gid,
+    port: parseInt(getArg('--port', '8081'), 10),
+    ip: getArg('--ip', null),
+    propagate: true,
+  });
 
-    console.log(`[indexer] group: ${gid}`);
-    buildTfIdfIndex(gid, async (err, count) => {
-      if (err) {
-        console.error('[indexer] Error:', err.message);
-        await shutdown(dist);
-        process.exit(1);
-      }
-      console.log(`[tfidf indexer] completed ${count} entries`);
-      await shutdown(dist);
-      process.exit(0);
-    }, {articleCount, cap});
-  })();
+  buildTfIdfIndex(gid, async (err, count) => {
+    if (err) console.error('[indexer] Error:', err.message);
+    else console.log(`[tfidf indexer] completed ${count} entries`);
+    await shutdown(dist);
+    process.exit(err ? 1 : 0);
+  }, {articleCount, cap});
 }
+
+if (require.main === module) main();

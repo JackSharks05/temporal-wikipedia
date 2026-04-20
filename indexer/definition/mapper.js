@@ -10,50 +10,44 @@ const ABBREV = new Set([
   'e.g', 'i.e', 'etc', 'vs', 'inc', 'ltd', 'co', 'corp', 'no',
 ]);
 
-function repeatReplace(text, regex, replacement) {
-  let prev;
-  do {
-    prev = text;
-    text = text.replace(regex, replacement);
-  } while (text !== prev);
-  return text;
-}
-
-function stripMarkup(text) {
-  text = text.replace(/<!--[\s\S]*?-->/g, '');
-  text = text.replace(/<ref\b[^>]*\/>/gi, '');
-  text = text.replace(/<ref\b[^>]*>[\s\S]*?<\/ref>/gi, '');
-  text = repeatReplace(text, /\{\{[^{}]*\}\}/g, '');
-  text = repeatReplace(text, /\{\|[\s\S]*?\|\}/g, '');
-  text = repeatReplace(text,
-      /\[\[(?:File|Image|Category):[^\[\]]*(?:\[\[[^\[\]]*\]\][^\[\]]*)*\]\]/gi, '');
-  text = text.replace(/\[\[([^\[\]|]+)\|([^\[\]]+)\]\]/g, '$2');
-  text = text.replace(/\[\[([^\[\]]+)\]\]/g, '$1');
-  text = text.replace(/\[https?:\/\/\S+\s+([^\]]+)\]/g, '$1');
-  text = text.replace(/\[https?:\/\/\S+\]/g, '');
+function extractPlainText(wikitext) {
+  if (!wikitext) return '';
+  let text = wikitext;
+  text = text.replace(/\[\[Category:[^\]]+\]\]/gi, '');
+  text = text.replace(/\[\[(File|Image):[^\]]+\]\]/gi, '');
+  text = text.replace(/\{\{[^}]*\}\}/g, '');
+  text = text.replace(/<ref[^>]*>.*?<\/ref>/gs, '');
+  text = text.replace(/<ref[^>]*\/>/g, '');
   text = text.replace(/<[^>]+>/g, '');
-  text = text.replace(/'''''|'''|''/g, '');
-  text = text.replace(/\(\s*[;,\s]*\)/g, '');
-
-  return text;
+  text = text.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2');
+  text = text.replace(/\[\[([^\]]+)\]\]/g, '$1');
+  text = text.replace(/\[https?:\/\/[^\s\]]+\s*([^\]]*)\]/g, '$1');
+  text = text.replace(/'{2,5}/g, '');
+  text = text.replace(/\n{3,}/g, '\n\n');
+  return text.trim();
 }
 
 function extractFirstParagraph(text) {
+  if (!text) return null;
   const lines = text.split('\n');
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line || line.length < 10) continue;
-    if (/^[#*:;|=!\-]/.test(line)) continue;
-
-    let paragraph = line;
-    for (let j = i + 1; j < lines.length; j++) {
-      const next = lines[j].trim();
-      if (!next || /^[=#*:;|]/.test(next)) break;
-      paragraph += ' ' + next;
-    }
-    return paragraph.replace(/\s+/g, ' ').trim();
+  let paragraph = lines[0].trim();
+  for (let i = 1; i < lines.length; i++) {
+    const next = lines[i].trim();
+    if (!next || /^[=#*:;|]/.test(next)) break;
+    paragraph += ' ' + next;
   }
-  return null;
+  return paragraph.replace(/\s+/g, ' ').trim() || null;
+}
+
+function prevWord(paragraph, i) {
+  let start = i;
+  while (start > 0 && paragraph[start - 1] !== ' ') start--;
+  return paragraph.slice(start, i).toLowerCase();
+}
+
+function nextNonSpaceChar(paragraph, i) {
+  while (i < paragraph.length && paragraph[i] === ' ') i++;
+  return paragraph[i];
 }
 
 function extractFirstSentence(paragraph) {
@@ -61,17 +55,12 @@ function extractFirstSentence(paragraph) {
     const c = paragraph[i];
     if (c !== '.' && c !== '!' && c !== '?') continue;
 
-    const after = paragraph[i + 1];
-    if (after && after !== ' ') continue;
+    if (paragraph[i + 1] && paragraph[i + 1] !== ' ') continue;
 
-    let j = i + 2;
-    while (j < paragraph.length && paragraph[j] === ' ') j++;
-    if (j < paragraph.length && !/[A-Z"(\[]/.test(paragraph[j])) continue;
+    const nextChar = nextNonSpaceChar(paragraph, i + 2);
+    if (nextChar && !/[A-Z"(\[]/.test(nextChar)) continue;
 
-    let ws = i;
-    while (ws > 0 && paragraph[ws - 1] !== ' ') ws--;
-    const word = paragraph.slice(ws, i).toLowerCase();
-    if (ABBREV.has(word)) continue;
+    if (ABBREV.has(prevWord(paragraph, i))) continue;
 
     return paragraph.slice(0, i + 1).trim();
   }
@@ -80,7 +69,7 @@ function extractFirstSentence(paragraph) {
 
 function parseFirstSentence(wikitext) {
   if (!wikitext) return null;
-  const stripped = stripMarkup(wikitext);
+  const stripped = extractPlainText(wikitext);
   const paragraph = extractFirstParagraph(stripped);
   if (!paragraph) return null;
   const sentence = extractFirstSentence(paragraph);

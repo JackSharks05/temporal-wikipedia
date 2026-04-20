@@ -25,8 +25,6 @@ async function runWorker(dist) {
   const store = util.promisify(storeYearEndState);
   const myNid = dist.util.id.getNID(dist.node.config);
 
-  console.log(`[worker] ${ip}:${port} polling coord ${COORD.ip}:${COORD.port}`);
-
   while (true) {
     let title;
     try {
@@ -35,17 +33,10 @@ async function runWorker(dist) {
           {node: COORD, service: ORCHESTRATOR_SERVICE_NAME, method: 'get_job'},
       );
     } catch (err) {
-      console.log(`[worker] get_job failed: ${err.message}; retrying in 10s`);
       await sleep(10000);
       continue;
     }
-
-    if (title === null) {
-      console.log('[worker] coord reports job complete; staying up for MR');
-      await sleep(30000);
-      continue;
-    }
-    if (title === '__WAIT__') {
+    if (title === 'try again') {
       await sleep(5000);
       continue;
     }
@@ -62,14 +53,10 @@ async function runWorker(dist) {
       console.log(`[worker] failed ${title}: ${err.message}`);
     }
 
-    try {
-      await send(
-          [title, result],
-          {node: COORD, service: ORCHESTRATOR_SERVICE_NAME, method: 'notify'},
-      );
-    } catch (err) {
-      console.log(`[worker] notify RPC failed for ${title}: ${err.message};`);
-    }
+    await send(
+        [title, result],
+        {node: COORD, service: ORCHESTRATOR_SERVICE_NAME, method: 'notify'},
+    );
   }
 }
 

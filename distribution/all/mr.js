@@ -48,14 +48,8 @@ function makeModuleShim(kind, modulePath, exportName, ctx) {
   const body = `
     try {
       var req = globalThis.__workerRequire;
-      if (typeof req !== 'function') {
-        throw new Error('worker missing globalThis.__workerRequire');
-      }
       var impl = req(${modLit});
       var fn = impl && impl[${expLit}];
-      if (typeof fn !== 'function') {
-        throw new Error('mr shim: ' + ${modLit} + ' does not export ' + ${expLit});
-      }
       return fn(key, ${payloadArg}, ${ctxLit});
     } catch (err) {
       console.log('[mr:${kind}:shim] error for key=' + key + ': ' + (err && err.message));
@@ -309,18 +303,11 @@ function mr(config) {
             const scanNext = () => {
               if (i >= mapKeys.length) {
                 if (states.length === 0) {
-                  console.log('[mr] shuffle: scan complete, 0 emissions, skipping batch');
                   return finish();
                 }
                 console.log('[mr] shuffle: scan complete, ' + states.length + ' emissions, sending appendBatch');
                 const t0 = Date.now();
                 dist[job.gid].mem.appendBatch(states, configs, (err, res) => {
-                  if (err) {
-                    console.log('[mr] shuffle: appendBatch failed: ' + (err.message || err));
-                  } else {
-                    console.log('[mr] shuffle: appendBatch done in ' +
-                        (Date.now() - t0) + 'ms (' + (res && res.appended) + ' appended)');
-                  }
                   return finish();
                 });
                 return;

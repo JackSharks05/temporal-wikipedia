@@ -1,21 +1,21 @@
-// https://en.wikipedia.org/w/api.php?action=query&titles=Pluto&prop=revisions&rvlimit=1&rvprop=content|timestamp|ids&rvdir=older&rvstart=2010-08-25T00:00:00Z&format=json
+const {spawnSync} = require('node:child_process');
+const {
+  revisionContent,
+  normalizeDisplayTitle,
+  fetchCurrentPageHtml,
+  extractBodyArticleLinksFromHtml,
+} = require('../crawler/wikiFetch');
 
-const {api, revisionContent, normalizeDisplayTitle, fetchCurrentPageHtml, extractBodyArticleLinksFromHtml,} = require('./wikiFetch');
-const {getArg} = require('../lib/clusterConnect');
+const USER_AGENT = 'TemporalWikipediaCrawler/0.1 (Brown CSCI 1380 project)';
 
-function fetchYearEndSnapshots(title, years, opts) {
-  if (!Array.isArray(years) || years.length === 0) {
-    throw new Error('fetchYearEndSnapshots: years must be a non-empty array');
-  }
-
+function fetchYearEndSnapshots(title, years) {
   let resolvedTitle = normalizeDisplayTitle(title);
   let pageId = '';
   const out = {};
   const sortedYears = years.slice().sort((a, b) => a - b);
 
   for (const year of sortedYears) {
-    const rvstart = `${year}-12-31T23:59:59Z`;
-    const payload = api({
+    const params = new URLSearchParams({
       action: 'query',
       prop: 'revisions',
       titles: resolvedTitle,
@@ -23,48 +23,41 @@ function fetchYearEndSnapshots(title, years, opts) {
       rvprop: 'ids|timestamp|content',
       rvslots: 'main',
       rvdir: 'older',
-      rvstart,
+      rvstart: `${year}-12-31T23:59:59Z`,
       rvlimit: '1',
       format: 'json',
       formatversion: '2',
-    }, opts);
+    });
 
-    const page = payload.query && payload.query.pages && payload.query.pages[0];
-    if (!page) {
-      throw new Error(`fetchYearEndSnapshots: malformed response for "${title}" year ${year}`);
-    }
-    if (page.missing) {
-      throw new Error(`fetchYearEndSnapshots: page "${title}" does not exist`);
-    }
+    const url = `https://en.wikipedia.org/w/api.php?${params}`;
+    const res = spawnSync('curl', [
+      '--silent', '--show-error', '--location', '--compressed',
+      '--max-time', '20', '--user-agent', USER_AGENT, url,
+    ], {encoding: 'utf8', maxBuffer: 64 * 1024 * 1024});
 
+    const page = JSON.parse(res.stdout).query.pages[0];
     if (!pageId && page.pageid) pageId = String(page.pageid);
     if (page.title) resolvedTitle = normalizeDisplayTitle(page.title);
 
     const rev = page.revisions && page.revisions[0];
-    if (!rev) continue; 
-
+    if (!rev) continue;
     out[String(year)] = revisionContent(rev);
-  }
-
-  if (Object.keys(out).length === 0) {
-    throw new Error(`fetchYearEndSnapshots: no revisions found for "${title}" in any of ${years.length} target years`);
   }
 
   return {pageId, title: resolvedTitle, years: out};
 }
 
 function getOutgoingLinks(title) {
-    data = fetchCurrentPageHtml(title)
-    return extractBodyArticleLinksFromHtml(data.html)
+  const data = fetchCurrentPageHtml(title);
+  return extractBodyArticleLinksFromHtml(data.html, {currentTitle: data.title});
 }
 
 module.exports = {fetchYearEndSnapshots, getOutgoingLinks};
 
-
- if (require.main === module) {                                                     
-    const r = fetchYearEndSnapshots('United States', [2010, 2020]);
-    console.log('pageId:', r.pageId, 'title:', r.title);                             
-    for (const [y, c] of Object.entries(r.years)) {                                  
-      console.log(`  ${y}: ${c.length} chars`);                                      
-    }                                                                                
-  }   
+if (require.main === module) {
+  const r = fetchYearEndSnapshots('United States', [2010, 2020]);
+  console.log('pageId:', r.pageId, 'title:', r.title);
+  for (const [y, c] of Object.entries(r.years)) {
+    console.log(`  ${y}: ${c.length} chars`);
+  }
+}

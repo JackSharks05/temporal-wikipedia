@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * editCadence indexer — distributed MapReduce over article-meta keys.
+ * editCadence indexer — distributed MapReduce over article segments.
  */
 
 const {
@@ -14,7 +14,6 @@ const REDUCER_MODULE = require.resolve("./reducer");
 
 function buildDistributedIndex(gid, callback, options) {
   if (typeof callback !== "function") callback = () => {};
-  const topN = (options && options.topN) || 3;
 
   const service = globalThis.distribution && globalThis.distribution[gid];
   if (!service || !service.store || !service.mr) {
@@ -22,18 +21,18 @@ function buildDistributedIndex(gid, callback, options) {
   }
 
   const metrics = createMetrics("editCadence");
-  console.log(`[indexer] starting MapReduce (topN=${topN})...`);
+  console.log("[indexer] starting MapReduce...");
 
   const endMR = metrics.phase("mapreduce");
   service.mr.exec(
     {
-      keyPrefix: "article-year-history:",
+      keyPrefix: "article-segment:",
       mapModule: MAPPER_MODULE,
-      mapExport: "mapArticle",
+      mapExport: "mapSegmentEdits",
       mapContext: { gid },
       reduceModule: REDUCER_MODULE,
-      reduceExport: "reduceYearWord",
-      reduceContext: { topN },
+      reduceExport: "reduceEditCadence",
+      reduceContext: {},
       storeResults: true,
     },
     (mrErr, result) => {
@@ -41,9 +40,7 @@ function buildDistributedIndex(gid, callback, options) {
       if (mrErr) return callback(normalizeStoreError(mrErr));
 
       const written = (result && result.written) || 0;
-      console.log(
-        `[indexer] stored ${written} diff:year:word entries (written during reduce)`,
-      );
+      console.log(`[indexer] stored ${written} edit cadence entries (written during reduce)`);
       metrics.report({ written });
       return callback(null, written);
     },
@@ -60,7 +57,6 @@ if (require.main === module) {
   } = require("../../lib/clusterConnect");
 
   const gid = getArg("--gid", "wiki");
-  const topN = parseInt(getArg("--top-n", "10"), 10);
 
   (async () => {
     let dist;
@@ -87,11 +83,11 @@ if (require.main === module) {
           await shutdown(dist);
           process.exit(1);
         }
-        console.log(`[indexer] done. ${count} year:word index entries built.`);
+        console.log(`[indexer] done. ${count} edit cadence index entries built.`);
         await shutdown(dist);
         process.exit(0);
       },
-      { topN },
+      {},
     );
   })();
 }

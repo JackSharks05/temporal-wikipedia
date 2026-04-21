@@ -30,6 +30,9 @@ function tokenize(text, minLength) {
   );
 }
 
+const MAX_TOKENS_PER_YEAR = 20000;
+const MAX_NEIGHBORS_PER_ANCHOR = 30;
+
 // For each article-year text, emit cooccurrence counts within a token window.
 function mapYearCooccurrence(key, data, ctx) {
   if (!data || !data.years || typeof data.years !== "object") return [];
@@ -39,8 +42,11 @@ function mapYearCooccurrence(key, data, ctx) {
   const emitted = [];
 
   for (const [year, text] of Object.entries(data.years)) {
-    const tokens = tokenize(text, minTokenLength);
+    let tokens = tokenize(text, minTokenLength);
     if (tokens.length === 0) continue;
+    if (tokens.length > MAX_TOKENS_PER_YEAR) {
+      tokens = tokens.slice(0, MAX_TOKENS_PER_YEAR);
+    }
 
     const counts = Object.create(null);
 
@@ -52,16 +58,21 @@ function mapYearCooccurrence(key, data, ctx) {
         if (anchor === neighbor) continue;
         if (!counts[anchor]) counts[anchor] = Object.create(null);
         counts[anchor][neighbor] = (counts[anchor][neighbor] || 0) + 1;
-        if (!counts[neighbor]) counts[neighbor] = Object.create(null);
-        counts[neighbor][anchor] = (counts[neighbor][anchor] || 0) + 1;
       }
     }
-    // fix oom issue just emit a single neighbor counts key per distinct word
+
     for (const [anchor, countsObj] of Object.entries(counts)) {
+      const entries = Object.entries(countsObj);
+      let neighbors;
+      if (entries.length > MAX_NEIGHBORS_PER_ANCHOR) {
+        entries.sort((a, b) => b[1] - a[1]);
+        entries.length = MAX_NEIGHBORS_PER_ANCHOR;
+        neighbors = Object.fromEntries(entries);
+      } else {
+        neighbors = countsObj;
+      }
       emitted.push({
-        [`cooc:${year}:${anchor}`]: {
-          neighbors: countsObj,
-        },
+        [`cooc:${year}:${anchor}`]: { neighbors },
       });
     }
   }

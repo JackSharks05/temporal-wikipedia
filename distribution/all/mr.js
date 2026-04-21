@@ -227,7 +227,7 @@ function mr(config) {
                 return finish(keys.length);
               }
 
-              if (i > 0 && i % 100 === 0) {
+              if (i > 0 && i % 5 === 0) {
                 console.log('[mr] map progress: ' + i + '/' + keys.length);
               }
 
@@ -296,21 +296,35 @@ function mr(config) {
 
             console.log('[mr] shuffle: ' + mapKeys.length + ' mapped entries to redistribute');
 
-            const states = [];
-            const configs = [];
+            const FLUSH_EVERY = 10000;
+            let states = [];
+            let configs = [];
+            let totalFlushed = 0;
+            let flushCount = 0;
             let i = 0;
+
+            const doFlush = (onDone) => {
+              if (states.length === 0) return onDone();
+              const s = states;
+              const c = configs;
+              states = [];
+              configs = [];
+              flushCount += 1;
+              const batchId = flushCount;
+              const batchSize = s.length;
+              console.log('[mr] shuffle: flushing batch #' + batchId + ' (' + batchSize + ' emissions)');
+              dist[job.gid].mem.appendBatch(s, c, () => {
+                totalFlushed += batchSize;
+                return onDone();
+              });
+            };
 
             const scanNext = () => {
               if (i >= mapKeys.length) {
-                if (states.length === 0) {
-                  return finish();
-                }
-                console.log('[mr] shuffle: scan complete, ' + states.length + ' emissions, sending appendBatch');
-                const t0 = Date.now();
-                dist[job.gid].mem.appendBatch(states, configs, (err, res) => {
+                return doFlush(() => {
+                  console.log('[mr] shuffle: scan complete, ' + totalFlushed + ' total emissions across ' + flushCount + ' batches');
                   return finish();
                 });
-                return;
               }
 
               if (i > 0 && i % 500 === 0) {
@@ -330,6 +344,9 @@ function mr(config) {
                     states.push(obj[emitKey]);
                     configs.push({gid: job.shuffleGid, key: emitKey});
                   }
+                }
+                if (states.length >= FLUSH_EVERY) {
+                  return doFlush(() => scanNext());
                 }
                 return scanNext();
               });

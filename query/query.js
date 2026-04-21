@@ -463,6 +463,12 @@ function dispatch(input, done) {
     return handleDefinition(year, title, done);
   }
 
+  if (cmd === 'search' && parts.length >= 3) {
+    const year = parts[1];
+    const terms = parts.slice(2).map((t) => t.toLowerCase());
+    return handleSearch(year, terms, done);
+  }
+
   const editsGlobal = input.match(/^edits-global\s+(\d{4})$/i);
   if (editsGlobal) return handleGlobalEdits(editsGlobal[1], done);
 

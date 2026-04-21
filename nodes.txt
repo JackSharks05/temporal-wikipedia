@@ -34,7 +34,7 @@
 # orhcestrator :
 # 100.26.146.139
 # private ip: 127.31.17.78
-# big orhc: 54.224.85.249
+# big orhc: 54.152.66.247
 
 
 

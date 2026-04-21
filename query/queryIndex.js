@@ -72,6 +72,15 @@ function isActiveAtT(record, queryTimestamp) {
 
 // our get function
 function getTemporalPostings(gid, word, callback) {
+  if (typeof callback !== "function") {
+    throw new TypeError(
+      "getTemporalPostings expects (gid, word, callback)",
+    );
+  }
+  if (typeof word !== "string") {
+    return callback(new TypeError("word must be a string"), []);
+  }
+
   getStore(gid).get({ key: makeTermKey(word), gid }, (err, value) => {
     const normalizedErr = normalizeStoreError(err);
     if (isMissingKeyError(normalizedErr)) return callback(null, []);

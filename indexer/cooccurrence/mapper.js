@@ -30,7 +30,7 @@ function tokenize(text, minLength) {
   );
 }
 
-const MAX_TOKENS_PER_YEAR = 20000;
+const MAX_TOKENS_PER_YEAR = 10000;
 const MAX_NEIGHBORS_PER_ANCHOR = 30;
 
 // For each article-year text, emit cooccurrence counts within a token window.

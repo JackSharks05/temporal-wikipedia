@@ -9,7 +9,7 @@ WikiDrift indexes Wikipedia’s revision history to answer:
 - how does Wikipedia semantically shift, year by year?
 - and more!
 
-More details can be found on our poster:
+More details can be found on our [poster](https://www.canva.com/design/DAHGOCAFwVA/l6COhWruKaaMjw3UcmgorQ/view):
 [![Canva Design Preview](./poster.png)](<[(https://www.canva.com/design/DAHGOCAFwVA/l6COhWruKaaMjw3UcmgorQ/view])>)
 
 # Appendix
